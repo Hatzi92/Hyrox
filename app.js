@@ -1361,18 +1361,30 @@ function renderPRs(){
 }
 
 // ===== RENDER: BACKUP-ERINNERUNG =====
+// Ab so vielen Tagen ohne Backup wird gewarnt (Text rot + Punkt am Verlauf-Tab).
+const BACKUP_STALE_DAYS = 10;
 function renderBackupHint(){
+  // Tage seit letztem Backup (null = noch nie gesichert)
+  const days = state.lastBackup
+    ? Math.floor((new Date() - dateFromKey(state.lastBackup)) / (24*60*60*1000))
+    : null;
+  const stale = (days === null) || (days >= BACKUP_STALE_DAYS);
+
+  // Punkt am Verlauf-Tab – läuft unabhängig vom Hinweis-Text, also aus jedem Tab.
+  const badge = document.getElementById('backupBadge');
+  if(badge) badge.classList.toggle('show', stale);
+
+  // Text-Hinweis im Verlauf-Tab selbst.
   const el = document.getElementById('backupHint');
   if(!el) return;
-  if(!state.lastBackup){
+  if(days === null){
     el.textContent = 'Noch kein Backup erstellt – exportier zur Sicherheit eins.';
     el.className = 'backup-hint warn';
     return;
   }
-  const days = Math.floor((new Date() - dateFromKey(state.lastBackup)) / (24*60*60*1000));
   const txt = days<=0 ? 'heute' : (days===1 ? 'vor 1 Tag' : `vor ${days} Tagen`);
   el.textContent = `Letztes Backup: ${txt}`;
-  el.className = 'backup-hint' + (days>=14 ? ' warn' : '');
+  el.className = 'backup-hint' + (stale ? ' warn' : '');
 }
 
 // ===== RENDER: HYROX-WETTKAMPF (offizielle Referenz) =====
