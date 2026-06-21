@@ -1,11 +1,13 @@
 // Service Worker für die Hyrox-App.
-// Strategie: App-Shell beim Install cachen, dann Stale-While-Revalidate –
-// die App lädt sofort aus dem Cache (auch offline, z.B. im Gym ohne Netz) und
-// aktualisiert sich im Hintergrund, wenn online.
+// Strategie:
+//   - Navigation/HTML  -> Network-first (online = sofort neueste Version,
+//                         offline = Fallback auf Cache). Löst das "alte
+//                         Version nach Deploy"-Problem.
+//   - Alles andere     -> Stale-While-Revalidate (sofort aus Cache, im
+//                         Hintergrund aktualisiert). Schnell + offline-fähig.
 //
-// WICHTIG: Bei jedem Deploy mit geänderten Dateien die Versionsnummer erhöhen
-// (hyrox-v1 -> hyrox-v2 ...), sonst sehen bereits installierte Nutzer die alte
-// Version weiter. Beim Aktivieren werden alte Caches automatisch gelöscht.
+// Versionsnummer nur erhöhen, wenn du den Cache hart purgen willst – für
+// normale Datei-Updates ist das nicht mehr nötig.
 const CACHE = 'hyrox-v1';
 
 // Relative Pfade, damit es auch in einem GitHub-Pages-Unterordner funktioniert.
@@ -36,10 +38,31 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  // Nur eigene GET-Requests behandeln (keine POST, keine Fremd-Domains).
   if (req.method !== 'GET') return;
   if (new URL(req.url).origin !== self.location.origin) return;
 
+  // HTML-Navigation: Network-first. ignoreSearch, damit ?v=2 trotzdem den
+  // gecachten index.html trifft, falls offline.
+  if (req.mode === 'navigate') {
+    e.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.status === 200) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put('./index.html', copy));
+          }
+          return res;
+        })
+        .catch(() =>
+          caches.open(CACHE).then((c) =>
+            c.match(req, { ignoreSearch: true }).then((m) => m || c.match('./index.html'))
+          )
+        )
+    );
+    return;
+  }
+
+  // Rest (app.js, Icons, manifest): Stale-While-Revalidate.
   e.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const cached = await cache.match(req);
@@ -48,7 +71,7 @@ self.addEventListener('fetch', (e) => {
           if (res && res.status === 200) cache.put(req, res.clone());
           return res;
         })
-        .catch(() => cached); // offline -> Cache-Version
+        .catch(() => cached);
       return cached || network;
     })
   );
