@@ -977,8 +977,28 @@ function loadState(){
   }catch(e){}
   return defaultState();
 }
+let saveWarned = false; // verhindert Alert-Spam bei wiederholtem Speicher-Fehler
 function saveState(){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    saveWarned = false;
+  }catch(e){
+    if(!saveWarned){
+      saveWarned = true;
+      alert('Speichern fehlgeschlagen – dein Fortschritt landet gerade NICHT auf dem Gerät. Mach bitte ein Backup (Tab Verlauf → Export).');
+    }
+  }
+}
+
+// Escaped Nutzer-Text, bevor er per innerHTML eingesetzt wird (z.B. Tagesnotizen).
+// Verhindert, dass < > & " ' das Markup zerschießen.
+function escapeHtml(s){
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
 }
 
 // Löst einen Plan-Eintrag auf: bei 'choice'-Tagen wird die für dieses Datum
@@ -1603,7 +1623,7 @@ function renderDayDetailContent(plan, dow, dk, isChoice, variantKey){
       </div>
       <div class="day-note">
         <label class="day-note-label">Notiz zum Tag</label>
-        <textarea class="day-note-input" id="dayNoteInput" placeholder="z.B. stark drauf / schlapp · neue Bestzeit · Beobachtung …">${state.dayNotes[dk] || ''}</textarea>
+        <textarea class="day-note-input" id="dayNoteInput" placeholder="z.B. stark drauf / schlapp · neue Bestzeit · Beobachtung …">${escapeHtml(state.dayNotes[dk] || '')}</textarea>
       </div>
       ${isChoice ? `<a class="change-choice" id="changeChoiceDetail">Training wechseln</a>` : ''}
     </div>
@@ -2112,7 +2132,7 @@ function renderHistory(){
           <span class="meal-time">${d.toLocaleDateString('de-DE',{weekday:'long', day:'numeric', month:'short'})}</span>
         </div>
         <div class="meal-name">${plan.title}</div>
-        ${note ? `<div class="history-note">📝 ${note}</div>` : ''}
+        ${note ? `<div class="history-note">📝 ${escapeHtml(note)}</div>` : ''}
       </div>
     `;
   }).join('');
