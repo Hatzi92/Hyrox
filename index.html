@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Hyrox Dezember</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="theme-color" content="#0f1110">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hyrox">
+<style>
+  :root{
+    --ink: #1a1d1a;
+    --ink-soft: #5c615c;
+    --ink-faint: #9a9e99;
+    --paper: #f7f6f2;
+    --card: #ffffff;
+    --line: #e3e1d8;
+    --moss: #4a6b4f;
+    --moss-light: #e4ecdf;
+    --rust: #b5562f;
+    --rust-light: #f7e6dd;
+    --steel: #3c5a73;
+    --steel-light: #e1eaf1;
+    --gold: #a8862f;
+    --gold-light: #f3ecd8;
+    --muscle-base: #d8d6cc;
+    --muscle-inactive: #eae8e0;
+    --muscle-active: #b5562f;
+    --radius: 14px;
+    --radius-sm: 9px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    padding-bottom: 90px;
+    overflow-x:hidden;
+  }
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    background:var(--paper);
+    padding: 18px 18px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar-row{display:flex; align-items:baseline; justify-content:space-between}
+  .brand{font-size:20px; font-weight:700; letter-spacing:-0.02em}
+  .brand span{color:var(--rust)}
+  .countdown{font-size:12px; color:var(--ink-soft); text-align:right; line-height:1.4}
+  .countdown b{color:var(--ink); font-size:15px}
+
+  .streak-strip{
+    display:flex; gap:6px; margin-top:14px;
+  }
+  .streak-day{
+    flex:1; height:6px; border-radius:4px; background:var(--line);
+  }
+  .streak-day.done{background:var(--moss)}
+  .streak-day.today{outline:2px solid var(--ink); outline-offset:1px}
+
+  main{padding: 16px 16px 0}
+
+  .section-title{
+    font-size: 13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--ink-soft); margin: 22px 0 10px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .section-title .count{font-weight:600; color:var(--ink-faint); text-transform:none; letter-spacing:0}
+
+  .today-card{
+    background:var(--card); border-radius:var(--radius); padding:18px;
+    border:1px solid var(--line);
+  }
+  .today-card.type-zirkel{border-left:4px solid var(--rust)}
+  .today-card.type-egym{border-left:4px solid var(--steel)}
+  .today-card.type-lauf{border-left:4px solid var(--moss)}
+  .today-card.type-ruhe{border-left:4px solid var(--gold)}
+  .today-card.type-choice{border-left:4px solid var(--rust)}
+
+  .choice-row{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap}
+  .choice-btn{
+    flex:1; min-width:120px; font-size:13px; font-weight:600; padding:12px 10px;
+    border-radius:var(--radius-sm); border:1.5px solid var(--line); background:var(--paper); color:var(--ink);
+  }
+  .choice-btn:active{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+
+  .change-choice{
+    display:inline-block; margin-top:12px; font-size:11.5px; color:var(--ink-faint);
+    text-decoration:underline;
+  }
+
+  .exercise-divider{
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+    color:var(--ink-faint); padding:10px 0 4px; border-top:1px solid var(--line); margin-top:4px;
+  }
+  .exercise-divider:first-child{border-top:none; margin-top:0; padding-top:0}
+
+  .today-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-faint)}
+  .today-title{font-size:19px; font-weight:700; margin-top:3px}
+  .today-sub{font-size:13px; color:var(--ink-soft); margin-top:6px; line-height:1.5}
+
+  .pill-row{display:flex; gap:6px; flex-wrap:wrap; margin-top:12px}
+  .pill{font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px}
+  .pill-rust{background:var(--rust-light); color:var(--rust)}
+  .pill-steel{background:var(--steel-light); color:var(--steel)}
+  .pill-moss{background:var(--moss-light); color:var(--moss)}
+  .pill-gold{background:var(--gold-light); color:var(--gold)}
+
+  .week-grid{
+    display:grid; grid-template-columns: repeat(7, 1fr); gap:6px;
+  }
+  .day-chip{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:8px 2px; text-align:center; cursor:pointer;
+  }
+  .day-chip.active{border-color:var(--ink); border-width:2px}
+  .day-chip .dn{font-size:10px; color:var(--ink-faint); font-weight:600}
+  .day-chip .dd{width:7px; height:7px; border-radius:50%; margin:5px auto 0}
+  .day-chip .dd.rust{background:var(--rust)}
+  .day-chip .dd.steel{background:var(--steel)}
+  .day-chip .dd.moss{background:var(--moss)}
+  .day-chip .dd.gold{background:var(--gold)}
+
+  .day-detail{
+    background:var(--card); border-radius:var(--radius); border:1px solid var(--line);
+    padding:16px; margin-top:10px;
+  }
+  .day-detail-title{font-size:16px; font-weight:700}
+  .day-detail-sub{font-size:12px; color:var(--ink-soft); margin-top:2px}
+  .exercise-list{margin-top:12px}
+  .exercise-row{border-top:1px solid var(--line)}
+  .exercise-row:first-child{border-top:none}
+  .exercise{
+    display:flex; align-items:center; gap:10px; padding:9px 0;
+  }
+  .exercise-check{
+    width:20px; height:20px; border-radius:6px; border:1.5px solid var(--line);
+    flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  }
+  .exercise-check.checked{background:var(--moss); border-color:var(--moss)}
+  .exercise-check.checked svg{display:block}
+  .exercise-check svg{display:none; width:12px; height:12px; stroke:white; stroke-width:3}
+  .exercise-name{font-size:13.5px; flex:1}
+  .exercise-name.done{color:var(--ink-faint); text-decoration:line-through}
+  .exercise-name-wrap{flex:1; min-width:0}
+  .exercise-last-weight{font-size:10.5px; color:var(--steel); margin-top:1px; font-weight:600}
+  .exercise-sets{font-size:11.5px; color:var(--ink-faint); white-space:nowrap}
+
+  .weight-btn{
+    flex-shrink:0; width:24px; height:24px; border-radius:50%; border:none;
+    background:transparent; color:var(--ink-faint); display:flex; align-items:center; justify-content:center;
+    padding:0;
+  }
+  .weight-btn:active{background:var(--line)}
+  .weight-btn svg{width:17px; height:17px}
+
+  .weight-panel{display:none; padding:14px 4px 16px}
+  .weight-panel.open{display:block}
+  .weight-input-title{font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px}
+  .weight-input-row{display:flex; gap:8px; flex-wrap:wrap}
+  .weight-input-group{display:flex; flex-direction:column; gap:4px; flex:1; min-width:64px}
+  .weight-input-label{font-size:10px; color:var(--ink-faint); font-weight:600}
+  .weight-input{
+    width:100%; padding:9px 8px; border-radius:8px; border:1.5px solid var(--line);
+    background:var(--paper); color:var(--ink); font-size:14px; text-align:center;
+    font-family:inherit;
+  }
+  .weight-input:focus{outline:none; border-color:var(--steel)}
+  .weight-save-btn{
+    width:100%; margin-top:12px; padding:10px; border-radius:10px; border:none;
+    background:var(--ink); color:var(--paper); font-size:13px; font-weight:700;
+  }
+  .weight-save-btn:active{opacity:0.85}
+  .weight-history-title{font-size:10.5px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.04em; margin:14px 0 6px}
+  .weight-history-list{display:flex; flex-direction:column; gap:5px}
+  .weight-history-item{
+    display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft);
+    padding:5px 8px; background:var(--paper); border-radius:7px;
+  }
+
+  .muscle-info-btn{
+    flex-shrink:0; width:24px; height:24px; border-radius:50%; border:none;
+    background:transparent; color:var(--ink-faint); display:flex; align-items:center; justify-content:center;
+    padding:0;
+  }
+  .muscle-info-btn:active{background:var(--line)}
+  .muscle-info-btn svg{width:18px; height:18px}
+
+  .muscle-panel{
+    display:none; padding:14px 4px 16px;
+  }
+  .muscle-panel.open{display:block}
+  .body-figures{display:flex; gap:18px; justify-content:center}
+  .body-figure{display:flex; flex-direction:column; align-items:center; gap:6px}
+  .body-figure svg{width:78px; height:auto}
+  .body-figure-label{font-size:10px; font-weight:600; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.04em}
+  .muscle-tags{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:12px}
+  .muscle-tag{
+    font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;
+    background:var(--rust-light); color:var(--rust);
+  }
+
+  .tab-row{display:flex; gap:6px; margin-top:0; overflow-x:auto; padding-bottom:2px}
+  .tab-btn{
+    flex-shrink:0; font-size:12.5px; font-weight:600; padding:7px 14px;
+    border-radius:20px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft);
+  }
+  .tab-btn.active{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+
+  .meal-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:13px 14px; margin-bottom:8px;
+  }
+  .meal-top{display:flex; justify-content:space-between; align-items:baseline}
+  .meal-time{font-size:11px; color:var(--ink-faint); font-weight:600}
+  .meal-kcal{font-size:11px; color:var(--ink-faint)}
+  .meal-name{font-size:14.5px; font-weight:700; margin-top:2px}
+  .meal-items{font-size:12.5px; color:var(--ink-soft); margin-top:5px; line-height:1.55}
+
+  .shop-cat{margin-bottom:18px}
+  .shop-cat-title{font-size:13px; font-weight:700; color:var(--ink); margin-bottom:6px; display:flex; align-items:center; gap:6px}
+  .shop-item{
+    display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid var(--line);
+  }
+  .shop-item:first-child{border-top:none}
+  .shop-check{
+    width:18px; height:18px; border-radius:5px; border:1.5px solid var(--line); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .shop-check.checked{background:var(--rust); border-color:var(--rust)}
+  .shop-check svg{display:none; width:11px; height:11px; stroke:white; stroke-width:3}
+  .shop-check.checked svg{display:block}
+  .shop-name{font-size:13px; flex:1}
+  .shop-name.done{color:var(--ink-faint); text-decoration:line-through}
+
+  .week-toggle{display:flex; gap:6px; margin-bottom:10px}
+  .wk-btn{
+    flex:1; font-size:12.5px; font-weight:700; padding:8px; text-align:center;
+    border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft);
+  }
+  .wk-btn.active{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+
+  .progress-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; display:flex; gap:14px;
+  }
+  .progress-ring{
+    width:48px; height:48px; flex-shrink:0; position:relative;
+  }
+  .progress-ring svg{transform:rotate(-90deg)}
+  .progress-ring .bg{fill:none; stroke:var(--line); stroke-width:5}
+  .progress-ring .fg{fill:none; stroke:var(--moss); stroke-width:5; stroke-linecap:round; transition: stroke-dashoffset .4s}
+  .progress-ring .pct{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700;
+  }
+  .progress-text{flex:1}
+  .progress-text .pl{font-size:11px; color:var(--ink-faint); font-weight:600; text-transform:uppercase; letter-spacing:0.05em}
+  .progress-text .pv{font-size:15px; font-weight:700; margin-top:2px}
+
+  .bottom-nav{
+    position:fixed; bottom:0; left:0; right:0; z-index:50;
+    background:var(--card); border-top:1px solid var(--line);
+    display:flex; padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  }
+  .nav-btn{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:8px 0; border-radius:10px; color:var(--ink-faint);
+  }
+  .nav-btn.active{color:var(--ink)}
+  .nav-btn svg{width:21px; height:21px; stroke-width:1.8}
+  .nav-label{font-size:10px; font-weight:600}
+
+  .view{display:none}
+  .view.active{display:block}
+
+  .empty-note{
+    font-size:12px; color:var(--ink-faint); text-align:center; padding:30px 20px;
+  }
+
+  .reset-link{
+    font-size:11.5px; color:var(--ink-faint); text-decoration:underline; text-align:center;
+    display:block; margin: 22px 0 8px;
+  }
+
+  .phase-banner{
+    background:var(--card); border:1px solid var(--line); border-left:4px solid var(--rust);
+    border-radius:var(--radius); padding:12px 14px; display:flex; align-items:center; gap:12px;
+    margin-top:4px;
+  }
+  .phase-banner .pb-badge{
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+    padding:5px 9px; border-radius:20px; background:var(--rust-light); color:var(--rust); white-space:nowrap;
+  }
+  .phase-banner .pb-text{flex:1; min-width:0}
+  .phase-banner .pb-title{font-size:13.5px; font-weight:700; color:var(--ink)}
+  .phase-banner .pb-sub{font-size:11.5px; color:var(--ink-soft); margin-top:2px}
+
+  .phase-roadmap{display:flex; flex-direction:column; gap:8px}
+  .phase-step{
+    display:flex; gap:12px; align-items:flex-start; padding:12px 14px; cursor:pointer;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius); opacity:0.5;
+  }
+  .phase-step.active{opacity:1; border-color:var(--rust); border-left:4px solid var(--rust)}
+  .phase-step.done{opacity:0.7}
+  .phase-step.expanded{opacity:1}
+  .phase-step .ps-dot{width:10px; height:10px; border-radius:50%; background:var(--line); margin-top:4px; flex-shrink:0}
+  .phase-step.active .ps-dot{background:var(--rust)}
+  .phase-step.done .ps-dot{background:var(--moss)}
+  .phase-step .ps-main{flex:1; min-width:0}
+  .phase-step .ps-name{font-size:13px; font-weight:700}
+  .phase-step .ps-toggle{font-size:10.5px; font-weight:600; color:var(--rust); margin-left:4px}
+  .phase-step.expanded .ps-toggle{color:var(--ink-faint)}
+  .phase-step .ps-blurb{font-size:11.5px; color:var(--ink-soft); margin-top:2px}
+  .phase-step .ps-when{font-size:10.5px; color:var(--ink-faint); margin-top:3px}
+  .ps-detail{display:none; margin-top:10px; border-top:1px solid var(--line); padding-top:8px}
+  .ps-detail.open{display:block}
+  .ps-detail-head{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-faint); margin:9px 0 3px}
+  .ps-list{margin:0; padding-left:16px}
+  .ps-list li{font-size:12px; color:var(--ink-soft); margin:2px 0}
+  .ps-detail-text{font-size:12px; color:var(--ink-soft)}
+
+  .nutri-card{
+    background:var(--card); border:1px solid var(--line); border-left:4px solid var(--moss);
+    border-radius:var(--radius); padding:14px; margin-bottom:4px;
+  }
+  .nutri-card .nc-badge{
+    display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+    padding:5px 9px; border-radius:20px; background:var(--moss-light); color:var(--moss);
+  }
+  .nutri-card .nc-focus{font-size:13.5px; font-weight:700; color:var(--ink); margin:10px 0 2px}
+  .nutri-macros{display:flex; flex-direction:column; gap:3px; margin-top:8px}
+  .nutri-macro{font-size:12px; color:var(--ink-soft)}
+  .nutri-macro b{color:var(--ink); font-weight:700}
+  .nutri-tips{margin-top:11px; display:flex; flex-direction:column; gap:5px}
+  .nutri-tip{font-size:11.5px; color:var(--ink-soft); padding-left:14px; position:relative}
+  .nutri-tip::before{content:'›'; position:absolute; left:2px; color:var(--moss); font-weight:700}
+
+  .day-kcal-total{
+    text-align:center; font-size:12.5px; color:var(--ink-soft); margin:2px 0 10px;
+  }
+  .day-kcal-total b{color:var(--ink); font-size:14px; font-weight:700}
+
+  /* Tagesnotiz */
+  .day-note{margin-top:14px}
+  .day-note-label{display:block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-faint); margin-bottom:5px}
+  .day-note-input{
+    width:100%; min-height:54px; resize:vertical; font-family:inherit; font-size:13px; color:var(--ink);
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius-sm); padding:9px 10px;
+  }
+  .day-note-input:focus{outline:none; border-color:var(--ink-faint)}
+  .history-note{font-size:12px; color:var(--ink-soft); margin-top:6px; line-height:1.4}
+
+  /* Körpergewicht */
+  .bw-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px}
+  .bw-row{display:flex; gap:8px}
+  .bw-row .weight-input{flex:1}
+  .bw-save{
+    padding:10px 16px; border-radius:10px; border:none; background:var(--ink); color:var(--paper);
+    font-size:13px; font-weight:700; white-space:nowrap;
+  }
+  .bw-save:active{opacity:0.85}
+  .bw-current{font-size:13px; color:var(--ink-soft); margin-top:10px}
+  .bw-current b{color:var(--ink); font-size:16px}
+  .bw-delta{font-size:12px; font-weight:700; margin-left:6px}
+  .bw-delta.down{color:var(--moss)}
+  .bw-delta.up{color:var(--rust)}
+  .bw-spark{width:100%; height:44px; margin-top:10px; display:block}
+  .bw-list{display:flex; flex-direction:column; gap:4px; margin-top:10px}
+  .bw-item{display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft); padding:4px 8px; background:var(--paper); border-radius:7px}
+
+  /* Bestzeiten */
+  .pr-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:6px 14px}
+  .pr-item{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--line)}
+  .pr-item:last-child{border-bottom:none}
+  .pr-label{font-size:13px; color:var(--ink); font-weight:600}
+  .pr-input{
+    width:96px; text-align:right; font-family:inherit; font-size:13px; color:var(--ink);
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius-sm); padding:7px 9px;
+  }
+  .pr-input:focus{outline:none; border-color:var(--ink-faint)}
+
+  /* Backup-Hinweis */
+  .backup-hint{font-size:11px; color:var(--ink-faint); text-align:center; margin-top:8px}
+  .backup-hint.warn{color:var(--rust)}
+
+  /* Hyrox-Wettkampf-Referenz */
+  .hyrox-card{background:var(--card); border:1px solid var(--line); border-left:4px solid var(--rust); border-radius:var(--radius); padding:14px}
+  .hyrox-meta{font-size:11.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:10px}
+  .hyrox-rows{display:flex; flex-direction:column}
+  .hyrox-row{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:12.5px}
+  .hyrox-row:last-child{border-bottom:none}
+  .hyrox-num{width:18px; height:18px; flex-shrink:0; border-radius:50%; background:var(--rust-light); color:var(--rust); font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center}
+  .hyrox-name{flex:1; font-weight:600; color:var(--ink)}
+  .hyrox-dist{color:var(--ink-soft); white-space:nowrap}
+  .hyrox-weight{width:88px; text-align:right; color:var(--ink-faint); white-space:nowrap}
+  .race-date-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding-bottom:12px; margin-bottom:10px; border-bottom:1px solid var(--line)}
+  .race-date-text{display:flex; flex-direction:column; gap:2px; min-width:0}
+  .race-date-label{font-size:13px; font-weight:700; color:var(--ink)}
+  .race-date-hint{font-size:10.5px; color:var(--rust); line-height:1.3}
+  .race-date-input{
+    font-family:inherit; font-size:13px; color:var(--ink); flex-shrink:0;
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius-sm); padding:7px 9px;
+  }
+  .race-date-input:focus{outline:none; border-color:var(--ink-faint)}
+
+  /* Hyrox-Zeit/Ergebnis-Tracking (Perf) */
+  .perf-btn{
+    flex-shrink:0; width:24px; height:24px; border-radius:50%; border:none;
+    background:transparent; color:var(--rust); display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .perf-btn:active{background:var(--line)}
+  .perf-btn svg{width:17px; height:17px}
+  .perf-panel{display:none; padding:14px 4px 16px}
+  .perf-panel.open{display:block}
+  .perf-input-title{font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px}
+  .perf-input-row{display:flex; gap:8px}
+  .perf-input{
+    flex:1; padding:9px 10px; border-radius:8px; border:1.5px solid var(--line);
+    background:var(--paper); color:var(--ink); font-size:14px; font-family:inherit;
+  }
+  .perf-input:focus{outline:none; border-color:var(--rust)}
+  .perf-save-btn{
+    padding:10px 16px; border-radius:10px; border:none; background:var(--ink); color:var(--paper);
+    font-size:13px; font-weight:700; white-space:nowrap;
+  }
+  .perf-save-btn:active{opacity:0.85}
+  .perf-history-title{font-size:10.5px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.04em; margin:14px 0 6px}
+  .perf-history-list{display:flex; flex-direction:column; gap:5px}
+  .perf-history-item{display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft); padding:5px 8px; background:var(--paper); border-radius:7px}
+
+  /* ESN 8-Wochen-Plan */
+  .esn-hint{
+    background:var(--card); border:1px solid var(--line); border-left:4px solid var(--steel);
+    border-radius:var(--radius); padding:12px 14px; margin-bottom:12px;
+  }
+  .esn-hint-title{font-size:12.5px; font-weight:700; color:var(--ink)}
+  .esn-hint-text{font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.55}
+  .esn-week-note{
+    font-size:12px; color:var(--ink-soft); background:var(--gold-light);
+    border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:10px; line-height:1.55;
+  }
+  .esn-session{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    margin-bottom:8px; overflow:hidden;
+  }
+  .esn-session.ski{border-left:4px solid var(--steel)}
+  .esn-session.done{border-left:4px solid var(--moss)}
+  .esn-session-head{display:flex; align-items:center; gap:10px; padding:14px; cursor:pointer}
+  .esn-session-main{flex:1; min-width:0}
+  .esn-session-name{font-size:14px; font-weight:700}
+  .esn-session-sub{font-size:11px; color:var(--ink-faint); font-weight:600; margin-top:2px}
+  .esn-session-count{font-size:11px; color:var(--ink-faint); font-weight:600; white-space:nowrap}
+  .esn-chev{width:18px; height:18px; color:var(--ink-faint); transition:transform .2s; flex-shrink:0}
+  .esn-session.open .esn-chev{transform:rotate(180deg)}
+  .esn-session-body{display:none; padding:0 14px 12px}
+  .esn-session.open .esn-session-body{display:block}
+  .esn-ski-badge{
+    display:inline-block; font-size:10px; font-weight:700; color:var(--steel);
+    background:var(--steel-light); border-radius:20px; padding:3px 9px; margin:2px 14px 0;
+  }
+  .esn-block{margin-top:14px}
+  .esn-block-head{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+    color:var(--ink-soft); display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+  }
+  .esn-block-meta{
+    font-size:10.5px; font-weight:600; color:var(--rust); text-transform:none;
+    letter-spacing:0; white-space:nowrap;
+  }
+  .esn-block-note{font-size:11.5px; color:var(--ink-soft); line-height:1.55; margin-top:6px}
+  .esn-block.info .esn-block-note{margin-top:0}
+
+  ::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-row">
+    <div class="brand">Alex<span>.</span>Hyrox</div>
+    <div class="countdown" id="countdown">– Tage<br><b>bis Frankfurt</b></div>
+  </div>
+  <div class="streak-strip" id="streakStrip"></div>
+</div>
+
+<main>
+
+  <div id="view-heute" class="view active">
+    <div id="phaseBanner"></div>
+    <div class="section-title">Heute</div>
+    <div id="todayCard"></div>
+
+    <div class="section-title">Diese Woche</div>
+    <div class="week-grid" id="weekGrid"></div>
+    <div id="dayDetail"></div>
+
+    <div class="section-title">Fortschritt Woche</div>
+    <div class="progress-card">
+      <div class="progress-ring">
+        <svg width="48" height="48" viewBox="0 0 48 48">
+          <circle class="bg" cx="24" cy="24" r="20"></circle>
+          <circle class="fg" id="ringFg" cx="24" cy="24" r="20" stroke-dasharray="125.6"></circle>
+        </svg>
+        <div class="pct" id="ringPct">0%</div>
+      </div>
+      <div class="progress-text">
+        <div class="pl">Trainings erledigt</div>
+        <div class="pv" id="progressLabel">0 von 6</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-ernaehrung" class="view">
+    <div class="section-title">Ernährung</div>
+    <div id="nutritionPhase"></div>
+    <div class="tab-row" id="foodDayTabs"></div>
+    <div id="foodContent" style="margin-top:12px"></div>
+  </div>
+
+  <div id="view-einkauf" class="view">
+    <div class="section-title">Einkauf</div>
+    <div id="shopPhase"></div>
+    <div class="week-toggle" id="shopWeekToggle" style="margin-top:4px"></div>
+    <div id="shopContent"></div>
+    <a class="reset-link" id="shopReset">Liste für diese Woche zurücksetzen</a>
+  </div>
+
+  <div id="view-esn" class="view">
+    <div class="section-title">Hyrox 8 Week</div>
+    <div id="esnHint"></div>
+    <div class="tab-row" id="esnWeekToggle"></div>
+    <div id="esnWeekNote"></div>
+    <div id="esnContent" style="margin-top:12px"></div>
+  </div>
+
+  <div id="view-fortschritt" class="view">
+    <div class="section-title">Trainingsphasen</div>
+    <div id="phaseRoadmap" class="phase-roadmap"></div>
+
+    <div class="section-title">Hyrox-Wettkampf</div>
+    <div id="hyroxInfo"></div>
+
+    <div class="section-title">Körpergewicht</div>
+    <div id="bodyWeightSection"></div>
+
+    <div class="section-title">Bestzeiten</div>
+    <div id="prSection"></div>
+
+    <div class="section-title">Dein Verlauf</div>
+    <div id="historyContent"></div>
+
+    <div class="section-title">Daten &amp; Backup</div>
+    <div class="week-toggle" style="margin-top:4px">
+      <button class="wk-btn" id="exportBackup">Backup exportieren</button>
+      <button class="wk-btn" id="importBackup">Backup importieren</button>
+    </div>
+    <div id="backupHint" class="backup-hint"></div>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+    <a class="reset-link" id="hardReset">Alle Daten zurücksetzen</a>
+  </div>
+
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-view="heute">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+    <span class="nav-label">Heute</span>
+  </button>
+  <button class="nav-btn" data-view="ernaehrung">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8M8 6c0 4-4 4-4 8a4 4 0 008 0c0-4-4-4-4-8z" transform="translate(0,0)"/><path d="M18 2v20M14 8h8"/></svg>
+    <span class="nav-label">Essen</span>
+  </button>
+  <button class="nav-btn" data-view="einkauf">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 002 1.6h9.7a2 2 0 002-1.6L23 6H6"/></svg>
+    <span class="nav-label">Einkauf</span>
+  </button>
+  <button class="nav-btn" data-view="esn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+    <span class="nav-label">Hyrox</span>
+  </button>
+  <button class="nav-btn" data-view="fortschritt">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+    <span class="nav-label">Verlauf</span>
+  </button>
+</nav>
+
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .catch((err) => console.warn('SW-Registrierung fehlgeschlagen:', err));
+    });
+  }
+</script>
+</body>
+</html>
