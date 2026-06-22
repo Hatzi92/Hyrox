@@ -1876,8 +1876,9 @@ function renderNutritionPhase(){
 function renderFoodTabs(){
   const tabsEl = document.getElementById('foodDayTabs');
   const order = [1,2,3,4,5,6,0];
-  tabsEl.innerHTML = order.map((d,idx)=>
-    `<button class="tab-btn ${idx===0?'active':''}" data-day="${d}">${WEEKDAYS[d]}</button>`
+  const today = new Date().getDay(); // 0=So .. 6=Sa – Essen-Tab startet auf heute
+  tabsEl.innerHTML = order.map((d)=>
+    `<button class="tab-btn ${d===today?'active':''}" data-day="${d}">${WEEKDAYS[d]}</button>`
   ).join('');
   tabsEl.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.onclick = ()=>{
@@ -1886,7 +1887,9 @@ function renderFoodTabs(){
       renderFoodContent(parseInt(btn.dataset.day));
     };
   });
-  renderFoodContent(1);
+  // Aktiven Tag sichtbar machen, falls die Tab-Leiste horizontal scrollt (z.B. So rechts).
+  tabsEl.querySelector('.tab-btn.active')?.scrollIntoView({inline:'center', block:'nearest'});
+  renderFoodContent(today);
 }
 
 function renderFoodContent(dow){
