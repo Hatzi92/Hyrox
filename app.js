@@ -835,6 +835,13 @@ const FOOD_PLAN = {
     {time:'Nach Zirkel', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:'Shake oder Quark + Obst, binnen 1-2h nach Training'},
     {time:'16:30 Snack', name:'Skyr & Banane', kcal:'~450 kcal', items:'250 g Skyr · Banane · 20 g Erdnussmus'},
     {time:'19:00 Abend', name:'Lachs & Gemüse', kcal:'~520 kcal', items:'180 g Lachs im Ofen · Brokkoli · 100 g Kartoffeln'},
+  ], zirkelMeals:[
+    {time:'9:30 Frühstück', name:'Quark-Schüssel', kcal:'~400 kcal', items:'250 g Magerquark · 30 g Haferflocken · Beeren · 1 EL Honig'},
+    {time:'12:00 Mittag', name:'Hähnchen & Reis', kcal:'~580 kcal', items:'180 g Hähnchenbrust · 150 g Reis · Paprika/Gurke roh'},
+    {time:'16:00 Pre-Workout', name:'Skyr & Banane', kcal:'~450 kcal', items:'250 g Skyr · Banane · 20 g Erdnussmus · gut verdaulich vor dem Training'},
+    {time:'18:00 Training', name:'Zirkeltraining · Physio Loft', kcal:'', items:'~45-60 Min · Wasserflasche mitnehmen', marker:true},
+    {time:'19:45 Nach Training', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:'Shake oder Quark + Obst, binnen 1-2h nach Training'},
+    {time:'21:00 Abend', name:'Lachs & Gemüse', kcal:'~520 kcal', items:'180 g Lachs im Ofen · Brokkoli · 100 g Kartoffeln'},
   ]},
   2: { day:'Di', meals:[
     {time:'9:30 Frühstück', name:'Overnight Oats', kcal:'~420 kcal', items:'40 g Haferflocken · 200 ml Milch · 150 g Joghurt · Beeren'},
@@ -854,6 +861,13 @@ const FOOD_PLAN = {
     {time:'Nach Zirkel', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:'Shake oder Quark, binnen 1-2h nach Training'},
     {time:'16:30 Snack', name:'Skyr & Nüsse', kcal:'~600 kcal', items:'250 g Skyr · 30 g Nüsse · Banane · 1 EL Honig'},
     {time:'19:00 Abend', name:'Omelett', kcal:'~480 kcal', items:'4 Eier · 80 g Feta · Spinat · Tomaten · 1 Scheibe Vollkornbrot'},
+  ], zirkelMeals:[
+    {time:'9:30 Frühstück', name:'Joghurt-Schüssel', kcal:'~380 kcal', items:'200 g griech. Joghurt 0% · Leinsamen · Banane · Beeren'},
+    {time:'12:15 Mittag', name:'Linsensuppe + Hähnchen', kcal:'~500 kcal', items:'250 ml Linsensuppe + 150 g Hähnchen dazu'},
+    {time:'15:45 Pre-Workout', name:'Skyr & Nüsse', kcal:'~600 kcal', items:'250 g Skyr · 30 g Nüsse · Banane · 1 EL Honig · etwas früher, da Nüsse langsamer verdauen'},
+    {time:'18:00 Training', name:'Zirkeltraining · Physio Loft', kcal:'', items:'~45-60 Min · Wasserflasche mitnehmen', marker:true},
+    {time:'19:45 Nach Training', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:'Shake oder Quark, binnen 1-2h nach Training'},
+    {time:'21:00 Abend', name:'Omelett', kcal:'~480 kcal', items:'4 Eier · 80 g Feta · Spinat · Tomaten · 1 Scheibe Vollkornbrot'},
   ]},
   5: { day:'Fr', meals:[
     {time:'9:30 Frühstück', name:'Rührei & Brot', kcal:'~420 kcal', items:'3 Eier · 1-2 Scheiben Vollkornbrot · Tomate'},
@@ -1040,6 +1054,13 @@ function getWeekDates(){
     dates.push(d);
   }
   return dates;
+}
+// Wochentag (JS getDay(): 0=So,1=Mo..6=Sa) -> dateKey des Tages in DIESER Woche.
+// Damit kann der Essen-Tab (rendert nach Wochentag) die pro-Datum gespeicherte
+// Trainingswahl aus state.variantChoice auslesen.
+function dateKeyForDow(dow){
+  const idx = (dow === 0) ? 6 : dow - 1; // Mo=Index0 ... So=Index6
+  return todayKey(getWeekDates()[idx]);
 }
 
 let selectedDate = new Date();
@@ -1871,12 +1892,20 @@ function renderFoodTabs(){
 function renderFoodContent(dow){
   const data = FOOD_PLAN[dow];
   const el = document.getElementById('foodContent');
+  // Zirkel-Variante zeigen, wenn für diesen Tag (aktuelle Woche) Zirkel gewählt
+  // wurde. Tage ohne zirkelMeals bleiben unberührt.
+  let meals = data.meals;
+  let isZirkel = false;
+  if(data.zirkelMeals && state.variantChoice[dateKeyForDow(dow)] === 'zirkel'){
+    meals = data.zirkelMeals;
+    isZirkel = true;
+  }
   // Tagessumme aus den kcal-Angaben der Mahlzeiten (erste Zahl je String).
-  const total = data.meals.reduce((sum,m)=> sum + parseInt((String(m.kcal).match(/\d+/)||[0])[0]), 0);
+  const total = meals.reduce((sum,m)=> sum + parseInt((String(m.kcal).match(/\d+/)||[0])[0]), 0);
   el.innerHTML = `
-    <div class="day-kcal-total">Tagessumme <b>~${total} kcal</b></div>
-  ` + data.meals.map(m=>`
-    <div class="meal-card">
+    <div class="day-kcal-total">Tagessumme <b>~${total} kcal</b>${isZirkel ? ' · <span class="zirkel-flag">Zirkeltag</span>' : ''}</div>
+  ` + meals.map(m=>`
+    <div class="meal-card${m.marker ? ' meal-marker' : ''}">
       <div class="meal-top">
         <span class="meal-time">${m.time}</span>
         <span class="meal-kcal">${m.kcal}</span>
