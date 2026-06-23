@@ -477,9 +477,19 @@ const PHASES = [
 function weeksUntilRace(d){
   return Math.ceil((getHyroxDate() - d) / (7*24*60*60*1000));
 }
-// Aktive Phase für ein Datum: erste Phase, deren minWeeks <= Wochen-bis-Rennen ist.
+// Offset in Wochen für einen späteren Einstieg in die Periodisierung. Fittere
+// Nutzer können den langen Grundaufbau überspringen (base→0, build→7, specific→12,
+// berechnet aus den minWeeks). Wirkt NUR auf die Phasenwahl – NICHT auf
+// weeksUntilRace, damit Countdown/Deload/Sim-Logik am echten Renndatum hängen.
+function phaseStartOffset(){
+  const key = state.profile && state.profile.startPhase;
+  if(!key || key === 'base') return 0;
+  const chosen = PHASES.find(p => p.key === key);
+  return chosen ? (PHASES[0].minWeeks - chosen.minWeeks) : 0;
+}
+// Aktive Phase für ein Datum: erste Phase, deren minWeeks <= effektive Wochen ist.
 function phaseForDate(d){
-  const weeks = weeksUntilRace(d);
+  const weeks = weeksUntilRace(d) - phaseStartOffset();
   return PHASES.find(p => weeks >= p.minWeeks) || PHASES[PHASES.length-1];
 }
 // Ist d der (editierbare) Renntag? Vergleich auf Kalendertag, kein UTC.
@@ -1436,6 +1446,67 @@ function renderPRs(){
   });
 }
 
+// ===== RENDER: PROFIL =====
+// Pro-Person-Einstellungen (eigener localStorage je Gerät): Name, Gewicht,
+// Kalorienziel (skaliert die Essensplan-Anzeige) und Einstiegsphase.
+function renderProfile(){
+  const el = document.getElementById('profileSection');
+  if(!el) return;
+  const p = state.profile || {};
+  const phaseOpts = [
+    {k:'base',     label:'Grundaufbau (Standard)'},
+    {k:'build',    label:'Aufbau'},
+    {k:'specific', label:'Spezifisch'},
+  ];
+  el.innerHTML = `
+    <div class="profile-card">
+      <div class="profile-row">
+        <span class="profile-label">Name</span>
+        <input class="profile-input" id="profileName" type="text" maxlength="24"
+               placeholder="optional" value="${escapeHtml(p.name || '')}">
+      </div>
+      <div class="profile-row">
+        <span class="profile-label">Körpergewicht</span>
+        <input class="profile-input" id="profileWeight" type="number" inputmode="decimal" min="30" max="300"
+               placeholder="kg" value="${p.weightKg != null ? p.weightKg : ''}">
+      </div>
+      <div class="profile-row">
+        <span class="profile-label">Kalorienziel</span>
+        <input class="profile-input" id="profileKcal" type="number" inputmode="numeric" min="1000" max="5000"
+               placeholder="kcal/Tag" value="${p.kcalTarget != null ? p.kcalTarget : ''}">
+      </div>
+      <div class="profile-row profile-col">
+        <span class="profile-label">Einstieg ab Phase</span>
+        <select class="profile-select" id="profileStartPhase">
+          ${phaseOpts.map(o=>`<option value="${o.k}" ${(p.startPhase || 'base')===o.k ? 'selected' : ''}>${o.label}</option>`).join('')}
+        </select>
+        <span class="profile-hint">Phasen zu überspringen setzt entsprechende Trainingserfahrung voraus.</span>
+      </div>
+    </div>
+  `;
+  // Name: oninput (kein Re-Render → Fokus bleibt), nur speichern.
+  document.getElementById('profileName').oninput = (e)=>{ state.profile.name = e.target.value; saveState(); };
+  // Gewicht: speichern (leeres/ungültiges Feld → null).
+  document.getElementById('profileWeight').onchange = (e)=>{
+    const v = parseFloat(e.target.value);
+    state.profile.weightKg = (isFinite(v) && v > 0) ? v : null;
+    saveState();
+  };
+  // Kalorienziel: speichern + Essensplan-Anzeige neu skalieren.
+  document.getElementById('profileKcal').onchange = (e)=>{
+    const v = parseInt(e.target.value);
+    state.profile.kcalTarget = (isFinite(v) && v > 0) ? v : null;
+    saveState();
+    renderFoodTabs();
+  };
+  // Einstiegsphase: speichern + alles Phasenabhängige neu (Heute/Banner/Ernährung/Einkauf).
+  document.getElementById('profileStartPhase').onchange = (e)=>{
+    state.profile.startPhase = e.target.value;
+    saveState();
+    renderAll();
+  };
+}
+
 // ===== RENDER: BACKUP-ERINNERUNG =====
 // Ab so vielen Tagen ohne Backup wird gewarnt (Text rot + Punkt am Verlauf-Tab).
 const BACKUP_STALE_DAYS = 10;
@@ -2034,6 +2105,18 @@ function renderFoodTabs(){
   renderFoodContent(today);
 }
 
+// Basis-Tagesziel, auf das die kcal-Werte im FOOD_PLAN ausgelegt sind.
+const PLAN_KCAL_BASE = 2250;
+// Persönlicher kcal-Faktor (nur Anzeige-Skalierung). Begrenzt auf 0.5–2.0;
+// ohne/ungültiges Ziel oder außerhalb des Bereichs → 1 (Standardwerte, schützt
+// vor absurder Skalierung bei Tippfehlern). FOOD_PLAN bleibt unverändert.
+function kcalFactor(){
+  const t = state.profile && Number(state.profile.kcalTarget);
+  if(!t || !isFinite(t)) return 1;
+  const f = t / PLAN_KCAL_BASE;
+  return (f < 0.5 || f > 2.0) ? 1 : f;
+}
+
 function renderFoodContent(dow){
   const data = FOOD_PLAN[dow];
   const el = document.getElementById('foodContent');
@@ -2045,15 +2128,28 @@ function renderFoodContent(dow){
     meals = data.zirkelMeals;
     isZirkel = true;
   }
-  // Tagessumme aus den kcal-Angaben der Mahlzeiten (erste Zahl je String).
-  const total = meals.reduce((sum,m)=> sum + parseInt((String(m.kcal).match(/\d+/)||[0])[0]), 0);
+  // Persönliche kcal-Skalierung (nur Anzeige). Bei Faktor 1 exakt die Originalwerte.
+  const factor = kcalFactor();
+  const scaleNum = (s)=>{
+    const mm = String(s).match(/\d+/);
+    if(!mm) return 0;
+    const n = parseInt(mm[0]);
+    return factor === 1 ? n : Math.round(n * factor / 10) * 10;
+  };
+  const scaleStr = (s)=>{
+    const mm = String(s).match(/\d+/);
+    if(!mm) return s; // leere Angaben (z.B. Trainings-Marker) unverändert
+    return factor === 1 ? s : String(s).replace(/\d+/, scaleNum(s));
+  };
+  // Tagessumme aus den (skalierten) kcal-Angaben der Mahlzeiten.
+  const total = meals.reduce((sum,m)=> sum + scaleNum(m.kcal), 0);
   el.innerHTML = `
     <div class="day-kcal-total">Tagessumme <b>~${total} kcal</b>${isZirkel ? ' · <span class="zirkel-flag">Zirkeltag</span>' : ''}</div>
   ` + meals.map(m=>`
     <div class="meal-card${m.marker ? ' meal-marker' : ''}">
       <div class="meal-top">
         <span class="meal-time">${m.time}</span>
-        <span class="meal-kcal">${m.kcal}</span>
+        <span class="meal-kcal">${scaleStr(m.kcal)}</span>
       </div>
       <div class="meal-name">${m.name}</div>
       <div class="meal-items">${m.items}</div>
@@ -2346,6 +2442,7 @@ function defaultState(){
     hyroxDate:DEFAULT_HYROX_DATE, // Renndatum 'YYYY-MM-DD', im UI editierbar
     lastBackup:null,  // todayKey des letzten Exports
     water:{},         // Wasser je Tag: { 'YYYY-MM-DD': anzahlGläser } (1 Glas = 250 ml)
+    profile:{ name:'', weightKg:null, kcalTarget:null, startPhase:'base' }, // pro Gerät/Person
   };
 }
 
@@ -2411,7 +2508,7 @@ document.querySelectorAll('.nav-btn').forEach(btn=>{
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('view-'+btn.dataset.view).classList.add('active');
-    if(btn.dataset.view==='fortschritt'){ renderHistory(); renderBackupHint(); renderBodyWeight(); renderPRs(); renderVolume(); }
+    if(btn.dataset.view==='fortschritt'){ renderProfile(); renderHistory(); renderBackupHint(); renderBodyWeight(); renderPRs(); renderVolume(); }
     if(btn.dataset.view==='esn'){ renderEsn(); }
   };
 });
@@ -2422,6 +2519,7 @@ function renderAll(){
   renderPhaseBanner();
   renderPhaseRoadmap();
   renderHyroxInfo();
+  renderProfile();
   renderBodyWeight();
   renderPRs();
   renderVolume();
