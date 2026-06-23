@@ -232,6 +232,30 @@
     border:1px solid var(--rust); border-radius:999px; padding:1px 8px; margin-left:4px;
   }
 
+  /* Wasser-Tracker */
+  .water-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; margin-bottom:14px;
+  }
+  .water-top{display:flex; justify-content:space-between; align-items:baseline}
+  .water-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-faint)}
+  .water-amount{font-size:15px; font-weight:700; color:var(--steel)}
+  .water-amount span{font-size:12px; font-weight:600; color:var(--ink-faint)}
+  .water-amount.goal{color:var(--moss)}
+  .water-dots{display:flex; gap:5px; flex-wrap:wrap; margin:12px 0}
+  .water-dot{
+    width:22px; height:22px; border-radius:6px; background:var(--paper);
+    border:1.5px solid var(--line); cursor:pointer; transition:background .15s, border-color .15s;
+  }
+  .water-dot.on{background:var(--steel); border-color:var(--steel)}
+  .water-ctrl{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:4px}
+  .water-btn{
+    width:40px; height:40px; flex-shrink:0; border-radius:10px; border:1.5px solid var(--line);
+    background:var(--paper); color:var(--ink); font-size:22px; font-weight:700; line-height:1;
+  }
+  .water-btn:active{background:var(--steel); color:#fff; border-color:var(--steel)}
+  .water-goal{flex:1; text-align:center; font-size:12px; color:var(--ink-soft)}
+
   .shop-cat{margin-bottom:18px}
   .shop-cat-title{font-size:13px; font-weight:700; color:var(--ink); margin-bottom:6px; display:flex; align-items:center; gap:6px}
   .shop-item{
@@ -301,6 +325,60 @@
   .view{display:none}
   .view.active{display:block}
 
+  /* In-Workout-Timer */
+  .timer-fab{
+    position:fixed; right:16px; bottom:calc(74px + env(safe-area-inset-bottom)); z-index:55;
+    width:52px; height:52px; border-radius:50%; border:none; background:var(--ink); color:var(--paper);
+    box-shadow:0 4px 14px rgba(0,0,0,0.25); display:flex; align-items:center; justify-content:center;
+  }
+  .timer-fab svg{width:24px; height:24px}
+  .timer-fab:active{transform:scale(0.94)}
+  .timer-sheet{
+    position:fixed; left:10px; right:10px; bottom:calc(70px + env(safe-area-inset-bottom)); z-index:60;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:0 8px 30px rgba(0,0,0,0.22); padding:16px;
+    transform:translateY(140%); opacity:0; pointer-events:none; transition:transform .25s, opacity .25s;
+  }
+  .timer-sheet.open{transform:translateY(0); opacity:1; pointer-events:auto}
+  .timer-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px}
+  .timer-title{font-size:14px; font-weight:700}
+  .timer-close{border:none; background:transparent; font-size:18px; color:var(--ink-faint); width:30px; height:30px}
+  .timer-modes{display:flex; gap:6px; margin-bottom:14px}
+  .timer-mode{
+    flex:1; font-size:13px; font-weight:600; padding:9px; border-radius:var(--radius-sm);
+    border:1.5px solid var(--line); background:var(--paper); color:var(--ink-soft);
+  }
+  .timer-mode.active{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+  .timer-display{text-align:center; margin:6px 0 16px}
+  .timer-phase{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-faint)}
+  .timer-phase.work{color:var(--rust)}
+  .timer-phase.rest{color:var(--steel)}
+  .timer-time{font-size:56px; font-weight:800; line-height:1.05; font-variant-numeric:tabular-nums; letter-spacing:-0.02em}
+  .timer-presets{display:flex; gap:6px; margin-bottom:10px}
+  .timer-chip{
+    flex:1; font-size:13px; font-weight:700; padding:9px 0; border-radius:var(--radius-sm);
+    border:1.5px solid var(--line); background:var(--paper); color:var(--ink);
+  }
+  .timer-chip:active{background:var(--steel); color:#fff; border-color:var(--steel)}
+  .timer-fields{display:flex; gap:8px}
+  .timer-field{flex:1; display:flex; flex-direction:column; gap:4px}
+  .timer-field label{font-size:10.5px; color:var(--ink-faint); font-weight:600}
+  .timer-input{
+    width:100%; padding:9px 8px; border-radius:8px; border:1.5px solid var(--line);
+    background:var(--paper); color:var(--ink); font-size:15px; text-align:center; font-family:inherit;
+  }
+  .timer-input:focus{outline:none; border-color:var(--steel)}
+  .timer-controls{display:flex; gap:8px; margin-top:16px}
+  .timer-start{
+    flex:2; padding:13px; border-radius:10px; border:none; background:var(--moss); color:#fff;
+    font-size:15px; font-weight:700;
+  }
+  .timer-start:active{opacity:0.88}
+  .timer-reset{
+    flex:1; padding:13px; border-radius:10px; border:1.5px solid var(--line);
+    background:var(--paper); color:var(--ink); font-size:14px; font-weight:600;
+  }
+
   .empty-note{
     font-size:12px; color:var(--ink-faint); text-align:center; padding:30px 20px;
   }
@@ -322,6 +400,16 @@
   .phase-banner .pb-text{flex:1; min-width:0}
   .phase-banner .pb-title{font-size:13.5px; font-weight:700; color:var(--ink)}
   .phase-banner .pb-sub{font-size:11.5px; color:var(--ink-soft); margin-top:2px}
+  .phase-banner .pb-deload{
+    font-size:10.5px; font-weight:700; white-space:nowrap; align-self:center;
+    padding:5px 9px; border-radius:20px; background:var(--gold-light); color:var(--gold);
+  }
+  /* Deload-Hinweis in Heute-Karte & Tagesansicht */
+  .deload-note{
+    margin-top:12px; padding:9px 11px; border-radius:var(--radius-sm);
+    background:var(--gold-light); color:var(--gold); font-size:12px; line-height:1.45;
+  }
+  .deload-note b{font-weight:700}
 
   .phase-roadmap{display:flex; flex-direction:column; gap:8px}
   .phase-step{
@@ -398,14 +486,34 @@
 
   /* Bestzeiten */
   .pr-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:6px 14px}
-  .pr-item{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--line)}
+  .pr-item{display:flex; flex-direction:column; gap:8px; padding:9px 0; border-bottom:1px solid var(--line)}
   .pr-item:last-child{border-bottom:none}
+  .pr-head{display:flex; align-items:center; justify-content:space-between; gap:10px}
   .pr-label{font-size:13px; color:var(--ink); font-weight:600}
   .pr-input{
     width:96px; text-align:right; font-family:inherit; font-size:13px; color:var(--ink);
     background:var(--paper); border:1px solid var(--line); border-radius:var(--radius-sm); padding:7px 9px;
   }
   .pr-input:focus{outline:none; border-color:var(--ink-faint)}
+  .pr-trend-row{display:flex; align-items:center; gap:10px}
+  .pr-spark{flex:1; height:34px; display:block}
+  .pr-trend-meta{font-size:10.5px; color:var(--ink-faint); white-space:nowrap; display:flex; flex-direction:column; align-items:flex-end; gap:2px}
+  .pr-trend{font-weight:700}
+  .pr-trend.better{color:var(--moss)}
+  .pr-trend.worse{color:var(--rust)}
+
+  /* Wochen-Volumen */
+  .vol-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px}
+  .vol-summary{font-size:12.5px; color:var(--ink-soft); margin-bottom:12px}
+  .vol-summary b{color:var(--ink)}
+  .vol-bars{display:flex; align-items:flex-end; justify-content:space-between; gap:6px}
+  .vol-col{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px}
+  .vol-count{font-size:11px; font-weight:700; color:var(--ink-soft)}
+  .vol-bar-track{height:64px; width:100%; display:flex; align-items:flex-end}
+  .vol-bar{width:100%; min-height:3px; background:var(--line); border-radius:5px 5px 0 0; transition:height .3s}
+  .vol-bar.current{background:var(--moss)}
+  .vol-label{font-size:10px; color:var(--ink-faint); font-weight:600}
+  .vol-label.current{color:var(--moss)}
 
   /* Backup-Hinweis */
   .backup-hint{font-size:11px; color:var(--ink-faint); text-align:center; margin-top:8px}
@@ -541,6 +649,7 @@
   <div id="view-ernaehrung" class="view">
     <div class="section-title">Ernährung</div>
     <div id="nutritionPhase"></div>
+    <div id="waterTracker"></div>
     <div class="tab-row" id="foodDayTabs"></div>
     <div id="foodContent" style="margin-top:12px"></div>
   </div>
@@ -573,6 +682,9 @@
 
     <div class="section-title">Bestzeiten</div>
     <div id="prSection"></div>
+
+    <div class="section-title">Wochen-Volumen</div>
+    <div id="volumeOverview"></div>
 
     <div class="section-title">Dein Verlauf</div>
     <div id="historyContent"></div>
@@ -612,6 +724,45 @@
     <span class="nav-label">Verlauf</span>
   </button>
 </nav>
+
+<!-- In-Workout-Timer: schwebender Button + Bottom-Sheet (liegt außerhalb der neu-rendernden Bereiche) -->
+<button id="timerFab" class="timer-fab" aria-label="Trainings-Timer">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>
+</button>
+<div id="timerSheet" class="timer-sheet">
+  <div class="timer-head">
+    <span class="timer-title">Trainings-Timer</span>
+    <button id="timerClose" class="timer-close" aria-label="Schließen">✕</button>
+  </div>
+  <div class="timer-modes">
+    <button class="timer-mode active" data-mode="pause">Pause</button>
+    <button class="timer-mode" data-mode="interval">Intervall</button>
+  </div>
+  <div class="timer-display">
+    <div id="timerPhase" class="timer-phase">Bereit</div>
+    <div id="timerTime" class="timer-time">1:30</div>
+  </div>
+  <div class="timer-config" id="timerConfigPause">
+    <div class="timer-presets">
+      <button class="timer-chip" data-sec="30">0:30</button>
+      <button class="timer-chip" data-sec="60">1:00</button>
+      <button class="timer-chip" data-sec="90">1:30</button>
+      <button class="timer-chip" data-sec="120">2:00</button>
+    </div>
+    <div class="timer-field"><label>Sekunden</label><input type="number" id="timerPauseSec" class="timer-input" value="90" inputmode="numeric"></div>
+  </div>
+  <div class="timer-config" id="timerConfigInterval" style="display:none">
+    <div class="timer-fields">
+      <div class="timer-field"><label>Belastung (s)</label><input type="number" id="tWork" class="timer-input" value="40" inputmode="numeric"></div>
+      <div class="timer-field"><label>Pause (s)</label><input type="number" id="tRest" class="timer-input" value="20" inputmode="numeric"></div>
+      <div class="timer-field"><label>Runden</label><input type="number" id="tRounds" class="timer-input" value="8" inputmode="numeric"></div>
+    </div>
+  </div>
+  <div class="timer-controls">
+    <button id="timerStart" class="timer-start">Start</button>
+    <button id="timerReset" class="timer-reset">Reset</button>
+  </div>
+</div>
 
 <script src="app.js"></script>
 <script>

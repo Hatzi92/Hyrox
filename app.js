@@ -506,6 +506,22 @@ function planEntry(dow, d){
   return entry;
 }
 
+// Montag der Woche, in der d liegt (lokale Zeit, kein UTC).
+function mondayOf(d){
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const back = (x.getDay()+6)%7; // Mo=0 … So=6
+  x.setDate(x.getDate()-back);
+  return x;
+}
+// Deload-Woche? Alle ~4 Wochen eine Entlastungswoche (rennbezogen verankert am
+// Montag der Woche). Greift nur im Block davor (≥6 Wochen vor dem Rennen): die
+// Spitzenwochen (2-5) bleiben hart, der Taper (0-1) ist ohnehin schon Entlastung.
+function isDeloadWeek(d){
+  if(isRaceDay(d) || isPostRace(d)) return false;
+  const weeks = weeksUntilRace(mondayOf(d));
+  return weeks >= 6 && (weeks - 6) % 4 === 0;
+}
+
 // ===== ESN 8-WOCHEN-PLAN (Referenz) =====
 // 1:1 aus dem ESN Hyrox Vorbereitungs-PDF übernommen. Reiner Nachschlage-/Abhak-Plan,
 // unabhängig vom eigenen Phasen-Wochenplan. Block-Typen: warm/work/cool.
@@ -1238,6 +1254,12 @@ function renderCountdown(){
   document.getElementById('countdown').innerHTML = `<b>${diff}</b> Tage<br>bis Frankfurt`;
 }
 
+// Deload-Hinweis für einen Trainingstag (leer bei Ruhetag oder Nicht-Deload-Woche).
+function deloadNoteHtml(d, type){
+  if(type==='ruhe' || !isDeloadWeek(d)) return '';
+  return `<div class="deload-note">⬇ <b>Deload-Woche:</b> Volumen ~−40 % – Gewichte/Runden reduzieren, sauber & locker bleiben, gut erholen.</div>`;
+}
+
 // ===== RENDER: PHASEN-BANNER (Heute) =====
 function renderPhaseBanner(){
   const el = document.getElementById('phaseBanner');
@@ -1251,6 +1273,7 @@ function renderPhaseBanner(){
       <div class="pb-title">Aktuelle Phase: ${phase.label}</div>
       <div class="pb-sub">${phase.blurb} · noch ${weeks} Wochen</div>
     </div>
+    ${isDeloadWeek(now) ? `<div class="pb-deload">⬇ Deload-Woche</div>` : ''}
   `;
 }
 
@@ -1363,13 +1386,45 @@ const PR_FIELDS = [
   { key:'wallballs',label:'Wall Balls (100)',       ph:'min:sek' },
   { key:'fullrace', label:'Hyrox gesamt',           ph:'h:min:sek' },
 ];
+// Wandelt eine Zeit-/Ergebnis-Eingabe in eine Zahl: "3:45"→225, "1:05:30"→3930,
+// "100 Wdh"→100, "0:48"→48. Für den Trend-Chart. Gibt null bei nicht-parsebar.
+function parseMetric(v){
+  if(v==null) return null;
+  const s = String(v).trim();
+  if(/^\d+(:\d{1,2})+$/.test(s)) return s.split(':').reduce((a,p)=> a*60+parseInt(p,10), 0);
+  const m = s.match(/[\d.,]+/);
+  return m ? parseFloat(m[0].replace(',','.')) : null;
+}
+// Mini-Sparkline aus der Perf-Testhistorie einer Disziplin (chronologisch).
+// Höherer Wert = oben → bei Zeiten heißt eine fallende Linie „schneller geworden".
+function prTrendHtml(discKey){
+  const all = (state.perf[discKey] || []).map(e=>parseMetric(e.value)).filter(v=>v!=null && !isNaN(v));
+  if(all.length < 2) return '';
+  const min = Math.min(...all), max = Math.max(...all), range = (max-min) || 1;
+  const W=240, H=34, pad=4;
+  const pts = all.map((v,idx)=>{
+    const x = pad + idx*(W-2*pad)/(all.length-1);
+    const y = pad + (1-(v-min)/range)*(H-2*pad);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const delta = all[all.length-1] - all[0];           // <0 = Wert gesunken (Zeit: schneller)
+  const trend = delta < 0 ? `<span class="pr-trend better">▼ schneller</span>`
+              : delta > 0 ? `<span class="pr-trend worse">▲ langsamer</span>` : '';
+  return `<div class="pr-trend-row">
+    <svg class="pr-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--steel)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="pr-trend-meta">${all.length} Tests${trend}</div>
+  </div>`;
+}
 function renderPRs(){
   const el = document.getElementById('prSection');
   if(!el) return;
   el.innerHTML = `<div class="pr-card">${PR_FIELDS.map(f=>`
     <div class="pr-item">
-      <span class="pr-label">${f.label}</span>
-      <input type="text" class="pr-input" data-key="${f.key}" value="${state.prs[f.key] || ''}" placeholder="${f.ph}">
+      <div class="pr-head">
+        <span class="pr-label">${f.label}</span>
+        <input type="text" class="pr-input" data-key="${f.key}" value="${state.prs[f.key] || ''}" placeholder="${f.ph}">
+      </div>
+      ${prTrendHtml(f.key)}
     </div>
   `).join('')}</div>`;
   el.querySelectorAll('.pr-input').forEach(inp=>{
@@ -1482,6 +1537,7 @@ function renderToday(){
         <div class="pill-row">
           ${plan.pills.map(p=>`<span class="pill pill-${entry.dot}">${p}</span>`).join('')}
         </div>
+        ${deloadNoteHtml(now, plan.type)}
         <a class="change-choice" data-dow="${dow}" data-dk="${dk}" data-target="today">Training wechseln</a>
       </div>
     `;
@@ -1502,6 +1558,7 @@ function renderToday(){
       <div class="pill-row">
         ${plan.pills.map(p=>`<span class="pill pill-${plan.dot}">${p}</span>`).join('')}
       </div>
+      ${deloadNoteHtml(now, plan.type)}
     </div>
   `;
 }
@@ -1606,6 +1663,7 @@ function renderDayDetailContent(plan, dow, dk, isChoice, variantKey){
     <div class="day-detail">
       <div class="day-detail-title">${plan.title}</div>
       <div class="day-detail-sub">${WEEKDAYS_FULL[dow]} · ${plan.sub}</div>
+      ${deloadNoteHtml(dateFromKey(dk), plan.type)}
       <div class="exercise-list">
         ${plan.exercises.map((ex,i)=>{
           const k = `${dk}_${i}`;
@@ -1850,6 +1908,46 @@ function renderProgress(){
   document.getElementById('progressLabel').textContent = `${done} von ${total}`;
 }
 
+// ===== RENDER: WOCHEN-VOLUMEN (Verlauf) =====
+// Die letzten 6 Wochen als Balken: wie viele Trainings je Woche abgeschlossen.
+function renderVolume(){
+  const el = document.getElementById('volumeOverview');
+  if(!el) return;
+  const WEEKS = 6;
+  const mondayThis = mondayOf(new Date());
+  const cols = [];
+  for(let w=WEEKS-1; w>=0; w--){
+    const mon = new Date(mondayThis);
+    mon.setDate(mon.getDate() - w*7);
+    let done = 0;
+    for(let i=0;i<7;i++){
+      const day = new Date(mon);
+      day.setDate(day.getDate()+i);
+      if(state.completedDays[todayKey(day)]) done++;
+    }
+    cols.push({ done, isCurrent: w===0, label: mon.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}) });
+  }
+  const totalDone = cols.reduce((s,c)=>s+c.done,0);
+  const avg = (totalDone/WEEKS).toFixed(1).replace('.',',');
+  const maxBar = 64; // px für 7 Trainings
+  el.innerHTML = `
+    <div class="vol-card">
+      <div class="vol-summary">Ø <b>${avg}</b> Trainings/Woche · ${totalDone} in ${WEEKS} Wochen</div>
+      <div class="vol-bars">
+        ${cols.map(c=>`
+          <div class="vol-col">
+            <div class="vol-count">${c.done}</div>
+            <div class="vol-bar-track">
+              <div class="vol-bar ${c.isCurrent?'current':''}" style="height:${Math.round(c.done/7*maxBar)}px"></div>
+            </div>
+            <div class="vol-label ${c.isCurrent?'current':''}">${c.isCurrent?'Diese':c.label}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 // ===== RENDER: FOOD VIEW =====
 // Phasen-Ernährungskarte über den Tages-Tabs: was diese Phase wirklich braucht.
 function renderNutritionPhase(){
@@ -1871,6 +1969,50 @@ function renderNutritionPhase(){
       </div>
     </div>
   `;
+}
+
+// ===== RENDER: WASSER-TRACKER =====
+// 1 Glas = 250 ml. Tagesziel 10 Gläser (2,5 l). Pro Tag in state.water gespeichert.
+const WATER_GOAL = 10;
+function setWaterToday(n){
+  const dk = todayKey(new Date());
+  const v = Math.max(0, Math.min(20, n));
+  if(v===0) delete state.water[dk]; else state.water[dk] = v;
+  saveState();
+  renderWater();
+}
+function renderWater(){
+  const el = document.getElementById('waterTracker');
+  if(!el) return;
+  const dk = todayKey(new Date());
+  const n = state.water[dk] || 0;
+  const liters = (n*0.25).toLocaleString('de-DE',{minimumFractionDigits:1, maximumFractionDigits:2});
+  const reached = n >= WATER_GOAL;
+  const dots = Array.from({length:WATER_GOAL}).map((_,i)=>
+    `<span class="water-dot ${i<n?'on':''}" data-n="${i+1}"></span>`
+  ).join('');
+  el.innerHTML = `
+    <div class="water-card">
+      <div class="water-top">
+        <div class="water-label">Wasser heute</div>
+        <div class="water-amount ${reached?'goal':''}">${n} <span>Gläser · ${liters} l</span></div>
+      </div>
+      <div class="water-dots">${dots}</div>
+      <div class="water-ctrl">
+        <button class="water-btn" id="waterMinus" aria-label="Glas abziehen">−</button>
+        <div class="water-goal">${reached ? '✓ Ziel erreicht (2,5 l)' : `Ziel: ${WATER_GOAL} Gläser / 2,5 l`}</div>
+        <button class="water-btn" id="waterPlus" aria-label="Glas hinzufügen">+</button>
+      </div>
+    </div>
+  `;
+  el.querySelector('#waterPlus').onclick = ()=> setWaterToday(n+1);
+  el.querySelector('#waterMinus').onclick = ()=> setWaterToday(n-1);
+  el.querySelectorAll('.water-dot').forEach(dot=>{
+    dot.onclick = ()=>{
+      const target = parseInt(dot.dataset.n);
+      setWaterToday(target===n ? target-1 : target); // letztes volles Glas erneut antippen = eins zurück
+    };
+  });
 }
 
 function renderFoodTabs(){
@@ -2203,6 +2345,7 @@ function defaultState(){
     perf:{},          // Hyrox-Zeiten je Disziplin: { discKey: [{ date, value }] }
     hyroxDate:DEFAULT_HYROX_DATE, // Renndatum 'YYYY-MM-DD', im UI editierbar
     lastBackup:null,  // todayKey des letzten Exports
+    water:{},         // Wasser je Tag: { 'YYYY-MM-DD': anzahlGläser } (1 Glas = 250 ml)
   };
 }
 
@@ -2268,7 +2411,7 @@ document.querySelectorAll('.nav-btn').forEach(btn=>{
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('view-'+btn.dataset.view).classList.add('active');
-    if(btn.dataset.view==='fortschritt'){ renderHistory(); renderBackupHint(); renderBodyWeight(); renderPRs(); }
+    if(btn.dataset.view==='fortschritt'){ renderHistory(); renderBackupHint(); renderBodyWeight(); renderPRs(); renderVolume(); }
     if(btn.dataset.view==='esn'){ renderEsn(); }
   };
 });
@@ -2281,6 +2424,7 @@ function renderAll(){
   renderHyroxInfo();
   renderBodyWeight();
   renderPRs();
+  renderVolume();
   renderBackupHint();
   renderStreak();
   renderToday();
@@ -2288,6 +2432,7 @@ function renderAll(){
   renderDayDetail();
   renderProgress();
   renderNutritionPhase();
+  renderWater();
   renderFoodTabs();
   state.shopWeek = currentShopWeek(); // beim Start automatisch auf Kalenderwoche syncen
   renderShopPhase();
@@ -2295,4 +2440,103 @@ function renderAll(){
   renderShopContent();
   renderEsn();
 }
+
+// ===== IN-WORKOUT-TIMER =====
+// Eigenständiges Modul (DOM außerhalb der neu-rendernden Bereiche). Zwei Modi:
+// Pause (einfacher Countdown) und Intervall (Belastung/Pause × Runden, EMOM-tauglich).
+// Akustik via Web Audio, Vibration via navigator.vibrate. Nicht persistiert.
+const Timer = (function(){
+  let mode='pause', running=false, remaining=0, phase='', round=0, id=null;
+  const cfg = { pause:90, work:40, rest:20, rounds:8 };
+  let audioCtx=null;
+  const $ = (i)=>document.getElementById(i);
+  const fmt = (s)=>{ s=Math.max(0,s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+
+  function beep(freq, dur){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.frequency.value=freq; o.connect(g); g.connect(audioCtx.destination);
+      const t=audioCtx.currentTime;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.3, t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+      o.start(t); o.stop(t+dur);
+    }catch(e){}
+  }
+  const buzz = (p)=>{ if(navigator.vibrate) navigator.vibrate(p); };
+  function signal(kind){
+    if(kind==='go'){ beep(880,0.18); buzz(120); }
+    else if(kind==='rest'){ beep(440,0.18); buzz(80); }
+    else if(kind==='done'){ beep(660,0.12); setTimeout(()=>beep(880,0.12),150); setTimeout(()=>beep(1150,0.25),300); buzz([120,80,120,80,200]); }
+  }
+  function updateDisplay(){
+    $('timerTime').textContent = fmt(remaining);
+    let label='Bereit';
+    if(mode==='pause'){ label = (phase==='done') ? 'Fertig 💪' : (running ? 'Pause läuft' : 'Bereit'); }
+    else if(phase==='work') label = 'Belastung · Runde '+round+'/'+cfg.rounds;
+    else if(phase==='rest') label = 'Pause · Runde '+round+'/'+cfg.rounds;
+    else if(phase==='done') label = 'Fertig 💪';
+    const ph=$('timerPhase');
+    ph.textContent=label;
+    ph.className='timer-phase'+(phase==='work'?' work':(phase==='rest'?' rest':''));
+  }
+  function readCfg(){
+    cfg.pause  = Math.max(1, parseInt($('timerPauseSec').value)||90);
+    cfg.work   = Math.max(1, parseInt($('tWork').value)||40);
+    cfg.rest   = Math.max(0, parseInt($('tRest').value)||0);
+    cfg.rounds = Math.max(1, parseInt($('tRounds').value)||1);
+  }
+  function tick(){
+    remaining--;
+    if(remaining>0){ if(remaining<=3) beep(700,0.07); updateDisplay(); return; }
+    if(mode==='pause'){ stop(); phase='done'; remaining=0; signal('done'); updateDisplay(); return; }
+    if(phase==='work'){
+      if(cfg.rest>0){ phase='rest'; remaining=cfg.rest; signal('rest'); updateDisplay(); return; }
+      if(round<cfg.rounds){ round++; remaining=cfg.work; signal('go'); updateDisplay(); return; }
+      return finish();
+    }
+    if(phase==='rest'){
+      if(round<cfg.rounds){ round++; phase='work'; remaining=cfg.work; signal('go'); updateDisplay(); return; }
+      return finish();
+    }
+  }
+  function finish(){ stop(); phase='done'; remaining=0; signal('done'); updateDisplay(); }
+  function start(){
+    if(running) return;
+    readCfg();
+    if(phase==='' || phase==='done'){ // frischer Start
+      if(mode==='pause'){ phase='pause'; remaining=cfg.pause; }
+      else { round=1; phase='work'; remaining=cfg.work; }
+      signal('go');
+    }
+    running=true; $('timerStart').textContent='Pause';
+    id=setInterval(tick,1000); updateDisplay();
+  }
+  function pause(){ running=false; if(id) clearInterval(id); id=null; $('timerStart').textContent='Weiter'; }
+  function stop(){ running=false; if(id) clearInterval(id); id=null; $('timerStart').textContent='Start'; }
+  function reset(){ stop(); phase=''; round=0; readCfg(); remaining = (mode==='pause'?cfg.pause:cfg.work); updateDisplay(); }
+  function setMode(m){
+    mode=m;
+    $('timerConfigPause').style.display    = m==='pause'    ? '' : 'none';
+    $('timerConfigInterval').style.display = m==='interval' ? '' : 'none';
+    document.querySelectorAll('.timer-mode').forEach(b=> b.classList.toggle('active', b.dataset.mode===m));
+    reset();
+  }
+  function init(){
+    if(!$('timerFab')) return;
+    $('timerFab').onclick = ()=>{ const s=$('timerSheet'); s.classList.toggle('open'); if(s.classList.contains('open')) reset(); };
+    $('timerClose').onclick = ()=> $('timerSheet').classList.remove('open');
+    $('timerStart').onclick = ()=> running ? pause() : start();
+    $('timerReset').onclick = reset;
+    document.querySelectorAll('.timer-mode').forEach(b=> b.onclick=()=>setMode(b.dataset.mode));
+    document.querySelectorAll('.timer-chip').forEach(c=> c.onclick=()=>{
+      $('timerPauseSec').value=c.dataset.sec; stop(); phase=''; remaining=parseInt(c.dataset.sec); updateDisplay();
+    });
+    reset();
+  }
+  return { init };
+})();
+Timer.init();
+
 renderAll();
