@@ -641,6 +641,16 @@
     background:var(--ink); color:var(--paper); font-size:14px; font-weight:700; font-family:inherit; cursor:pointer;
   }
   .split-finish-btn:active{opacity:0.85}
+  /* kg/Wdh-Logging je Split-Übung (Schritt 2) */
+  .split-log{display:flex; align-items:center; gap:6px; padding:2px 14px 4px 50px}
+  .split-log-kg, .split-log-reps{
+    width:62px; padding:6px 8px; border-radius:8px; border:1.5px solid var(--line);
+    background:var(--paper); color:var(--ink); font-size:13px; font-family:inherit; text-align:center;
+  }
+  .split-log-kg:focus, .split-log-reps:focus{outline:none; border-color:var(--rust)}
+  .split-log-unit{font-size:11px; color:var(--ink-faint); font-weight:600; margin-right:6px}
+  .split-log-last{font-size:10.5px; color:var(--ink-faint); font-weight:600; padding:0 14px 8px 50px; line-height:1.5}
+  .split-nudge{color:var(--rust); font-weight:700}
 
   ::-webkit-scrollbar{display:none}
 </style>

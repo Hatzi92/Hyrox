@@ -92,6 +92,31 @@ function activeSplitPlan(){
   return (state.aktiverPlan && state.aktiverPlan !== 'hyrox') ? SPLIT_PLAENE[state.aktiverPlan] : null;
 }
 
+// --- Schritt 2: Gewichts-/Wdh-Logging für Split-Übungen (separat von Hyrox) ---
+// Entwurf = aktuelle Eingabe, noch nicht als Verlaufspunkt festgeschrieben. Wird bei
+// jeder Eingabe persistiert, damit beim Re-Render/Plan-Wechsel nichts verloren geht.
+function getSplitDraft(planId){
+  if(!state.splitDraft[planId]) state.splitDraft[planId] = {};
+  return state.splitDraft[planId];
+}
+// Letzter festgeschriebener Verlaufseintrag einer Split-Übung (oder null).
+// Schlüssel identisch zum Check-Schema 't<tag>_<index>', aber unter splitLog gespeichert.
+function lastSplitLog(planId, key){
+  const list = state.splitLog[planId] && state.splitLog[planId][key];
+  return (list && list.length) ? list[list.length-1] : null;
+}
+// Obere Wdh-Grenze aus dem s-Feld ('4×6-10' → 10, '3×8-12' → 12). null bei 'max',
+// Zeitangaben (min/sek) oder fehlender Zahl → dann kein Progression-Nudge.
+function splitRepTarget(s){
+  if(!s) return null;
+  const after = String(s).split(/[×x]/)[1] || '';
+  if(/max|min|sek/i.test(after)) return null;
+  const range = after.match(/(\d+)\s*-\s*(\d+)/);
+  if(range) return parseInt(range[2], 10);
+  const single = after.match(/(\d+)/);
+  return single ? parseInt(single[1], 10) : null;
+}
+
 // ===== DATA =====
 // Hyrox-Datum ist im UI editierbar (Tab "Verlauf" → Hyrox-Wettkampf). Gespeichert
 // als 'YYYY-MM-DD' in state.hyroxDate; bis Alex es setzt, gilt dieser Platzhalter.
@@ -1716,6 +1741,7 @@ function renderToday(){
 // Kein Kalender: der Tag ergibt sich aus aktuellerTag in state.splitFortschritt.
 function renderSplitToday(plan){
   const prog = getSplitProgress(plan.id);
+  const draft = getSplitDraft(plan.id);
   const tag = currentSplitDay(plan, prog);
   const card = document.getElementById('todayCard');
   const ex = tag.uebungen;
@@ -1733,6 +1759,23 @@ function renderSplitToday(plan){
           const k = splitCheckKey(tag.nr,i);
           const checked = !!prog.checks[k];
           const hasMuscles = e.m && e.m.length;
+          const d = draft[k] || {};
+          const last = lastSplitLog(plan.id, k);
+          // Vorbelegung: Entwurf hat Vorrang, sonst letzter Wert als Placeholder.
+          const kgVal   = (d.kg   != null && d.kg   !== '') ? `value="${d.kg}"`   : '';
+          const repsVal = (d.reps != null && d.reps !== '') ? `value="${d.reps}"` : '';
+          const kgPh    = last && last.kg   != null ? last.kg   : 'kg';
+          const repsPh  = last && last.reps != null ? last.reps : 'Wdh';
+          let lastHtml = '';
+          if(last && (last.kg != null || last.reps != null)){
+            const parts = [];
+            if(last.kg   != null) parts.push(`${last.kg} kg`);
+            if(last.reps != null) parts.push(`× ${last.reps}`);
+            const target = splitRepTarget(e.s);
+            const nudge = (target != null && last.reps != null && Number(last.reps) >= target)
+              ? ` <span class="split-nudge">↑ oberes Wdh-Ziel erreicht – Gewicht erhöhen</span>` : '';
+            lastHtml = `<div class="split-log-last">letztes Mal: ${parts.join(' ')}${nudge}</div>`;
+          }
           return `
             <div class="exercise-row">
               <div class="exercise split-exercise" data-i="${i}">
@@ -1747,6 +1790,13 @@ function renderSplitToday(plan){
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                 </button>` : ''}
               </div>
+              <div class="split-log" data-i="${i}">
+                <input type="number" inputmode="decimal" step="0.5" class="split-log-kg" ${kgVal} placeholder="${kgPh}" aria-label="Gewicht in kg">
+                <span class="split-log-unit">kg</span>
+                <input type="number" inputmode="numeric" step="1" class="split-log-reps" ${repsVal} placeholder="${repsPh}" aria-label="Wiederholungen">
+                <span class="split-log-unit">Wdh</span>
+              </div>
+              ${lastHtml}
               ${hasMuscles ? `<div class="muscle-panel" id="smp_${i}"></div>` : ''}
             </div>`;
         }).join('')}
@@ -1766,6 +1816,24 @@ function renderSplitToday(plan){
     };
   });
 
+  // kg/Wdh-Eingabe: sofort in den Entwurf persistieren (kein Re-Render → kein
+  // Fokusverlust). stopPropagation, damit der Klick ins Feld nicht den Haken togglet.
+  card.querySelectorAll('.split-log').forEach(row=>{
+    const k = splitCheckKey(tag.nr, parseInt(row.dataset.i));
+    const kgIn = row.querySelector('.split-log-kg');
+    const repsIn = row.querySelector('.split-log-reps');
+    [kgIn, repsIn].forEach(inp=> inp.onclick = (e)=> e.stopPropagation());
+    const persist = ()=>{
+      const kg = kgIn.value.trim();
+      const reps = repsIn.value.trim();
+      if(kg === '' && reps === '') delete draft[k];
+      else draft[k] = { kg, reps };
+      saveState();
+    };
+    kgIn.oninput = persist;
+    repsIn.oninput = persist;
+  });
+
   // Muskelinfo-Panel (gleiche Grafik wie im Hyrox-Plan)
   card.querySelectorAll('.muscle-info-btn').forEach(btn=>{
     btn.onclick = (evt)=>{
@@ -1778,11 +1846,27 @@ function renderSplitToday(plan){
     };
   });
 
-  // Tag abschließen: Checks dieses Tags leeren, einen Tag weiter (zyklisch), neu rendern
+  // Tag abschließen: Entwurf je Übung als ein Verlaufspunkt in splitLog festschreiben,
+  // dann Checks + Entwurf dieses Tags leeren, einen Tag weiter (zyklisch), neu rendern.
   const finishBtn = document.getElementById('splitFinishBtn');
   if(finishBtn){
     finishBtn.onclick = ()=>{
-      tag.uebungen.forEach((_,i)=> delete prog.checks[splitCheckKey(tag.nr,i)]);
+      if(!state.splitLog[plan.id]) state.splitLog[plan.id] = {};
+      const today = todayKey(new Date());
+      tag.uebungen.forEach((_,i)=>{
+        const k = splitCheckKey(tag.nr, i);
+        const d = draft[k];
+        if(d && (d.kg !== '' || d.reps !== '')){
+          if(!state.splitLog[plan.id][k]) state.splitLog[plan.id][k] = [];
+          state.splitLog[plan.id][k].push({
+            date: today,
+            kg:   (d.kg   === '' || d.kg   == null) ? null : parseFloat(String(d.kg).replace(',', '.')),
+            reps: (d.reps === '' || d.reps == null) ? null : parseInt(d.reps, 10),
+          });
+        }
+        delete draft[k];        // Entwurf dieses Tags leeren
+        delete prog.checks[k];  // Check leeren (wie in Schritt 1)
+      });
       const idx = plan.tage.findIndex(t=>t.nr===tag.nr);
       prog.aktuellerTag = plan.tage[(idx+1) % plan.tage.length].nr;
       saveState();
@@ -2635,6 +2719,8 @@ function defaultState(){
     profile:{ name:'', weightKg:null, kcalTarget:null, startPhase:'base' }, // pro Gerät/Person
     aktiverPlan:'hyrox',  // 'hyrox' = bisheriges Verhalten (Default!), sonst eine SPLIT_PLAENE-id
     splitFortschritt:{},  // pro Split-Plan: { split_5er: { aktuellerTag:1, checks:{ 't1_0':true } } }
+    splitLog:{},   // Verlauf je Split-Übung: { planId: { 't<tag>_<index>': [{date,kg,reps}] } }
+    splitDraft:{}, // aktueller Eingabe-Entwurf je Übung: { planId: { 't<tag>_<index>': {kg,reps} } }
   };
 }
 
