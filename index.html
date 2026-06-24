@@ -651,6 +651,21 @@
   .split-log-unit{font-size:11px; color:var(--ink-faint); font-weight:600; margin-right:6px}
   .split-log-last{font-size:10.5px; color:var(--ink-faint); font-weight:600; padding:0 14px 8px 50px; line-height:1.5}
   .split-nudge{color:var(--rust); font-weight:700}
+  /* Reset-Aktionen für den aktiven Split (Pläne-Tab) */
+  .plan-manage{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; margin-top:4px; display:flex; flex-direction:column; gap:8px;
+  }
+  .plan-manage-title{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+    color:var(--ink-faint); margin-bottom:2px;
+  }
+  .plan-manage-btn{
+    width:100%; padding:11px; border-radius:var(--radius-sm); border:1.5px solid var(--line);
+    background:var(--paper); color:var(--ink); font-size:13px; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  .plan-manage-btn:active{opacity:0.85}
+  .plan-manage-btn.danger{color:var(--rust); border-color:var(--rust)}
 
   ::-webkit-scrollbar{display:none}
 </style>

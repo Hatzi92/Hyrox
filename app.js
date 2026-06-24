@@ -2632,6 +2632,7 @@ function renderPlanAuswahl(){
       desc:`${p.ziel==='muskelaufbau'?'Muskelaufbau':p.ziel} · Quelle ${p.quelle} · rollend (${p.tage.length} Tage)`
     }))
   ];
+  const split = activeSplitPlan();
   el.innerHTML = plaene.map(p=>{
     const active = state.aktiverPlan === p.id;
     return `
@@ -2642,7 +2643,15 @@ function renderPlanAuswahl(){
         </div>
         ${active ? `<span class="plan-card-badge">aktiv</span>` : ''}
       </button>`;
-  }).join('');
+  }).join('')
+  // Reset-Aktionen NUR für den aktiven Split (nicht bei Hyrox, nicht für andere Pläne).
+  + (split ? `
+      <div class="plan-manage">
+        <div class="plan-manage-title">${split.name} verwalten</div>
+        <button class="plan-manage-btn" id="splitResetProgress">Fortschritt zurücksetzen</button>
+        <button class="plan-manage-btn danger" id="splitResetLog">Gewichts-Verlauf löschen</button>
+      </div>` : '');
+
   el.querySelectorAll('.plan-card').forEach(btn=>{
     btn.onclick = ()=>{
       state.aktiverPlan = btn.dataset.plan;
@@ -2650,6 +2659,26 @@ function renderPlanAuswahl(){
       renderAll();
     };
   });
+
+  if(split){
+    // Fortschritt zurücksetzen: aktuellerTag → 1, Checks leeren. splitLog bleibt erhalten.
+    const resetProgBtn = document.getElementById('splitResetProgress');
+    resetProgBtn.onclick = ()=>{
+      if(!confirm(`Fortschritt von „${split.name}" zurücksetzen? Du startest wieder bei Tag 1, der Gewichts-Verlauf bleibt erhalten.`)) return;
+      state.splitFortschritt[split.id] = { aktuellerTag: 1, checks: {} };
+      saveState();
+      renderAll();
+    };
+    // Gewichts-Verlauf löschen: splitLog + splitDraft des Plans weg. Fortschritt bleibt.
+    const resetLogBtn = document.getElementById('splitResetLog');
+    resetLogBtn.onclick = ()=>{
+      if(!confirm(`Wirklich den kompletten Gewichts-Verlauf für „${split.name}" löschen? Das kann nicht rückgängig gemacht werden.`)) return;
+      delete state.splitLog[split.id];
+      delete state.splitDraft[split.id];
+      saveState();
+      renderAll();
+    };
+  }
 }
 
 function renderEsn(){
