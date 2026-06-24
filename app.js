@@ -21,6 +21,77 @@ const MUSCLE_INFO = {
   forearms:   { label:'Unterarme',         view:'both'  },
 };
 
+// ===== SPLIT-PLÄNE (rollend, NICHT wochentag-gebunden) =====
+// Parallel zur bestehenden Hyrox-Logik. Ein Split-Plan hat nummerierte Tage, die
+// rollend durchlaufen werden: der aktuelle Tag ergibt sich aus den Abhakungen,
+// nicht aus dem Kalender (siehe state.splitFortschritt + renderSplitToday).
+// Übungsform wie bei Hyrox: { n:Name, s:'Sätze×Wdh', m:[Muskel-Codes aus MUSCLE_INFO] }.
+const SPLIT_PLAENE = {
+  split_5er: {
+    id: 'split_5er',
+    name: '5er Split',
+    quelle: 'ESN',
+    ziel: 'muskelaufbau',
+    typ: 'split',          // generischer rollender Typ
+    tagModus: 'rollend',   // NICHT wochentag-gebunden
+    tage: [
+      { nr: 1, titel: 'Brust', uebungen: [
+        { n: 'KH-Schrägbankdrücken',       s: '4×6-10',  m: ['chest','shoulders','triceps'] },
+        { n: 'Brustpresse',                s: '4×8-12',  m: ['chest'] },
+        { n: 'Butterfly am Kabelturm',     s: '4×12-15', m: ['chest'] },
+        { n: 'Dips',                       s: '3×max',   m: ['chest','triceps'] },
+        { n: 'Crunches am Kabelturm',      s: '3×12-15', m: ['abs'] },
+      ]},
+      { nr: 2, titel: 'Rücken', uebungen: [
+        { n: 'LH-Rudern',                  s: '4×6-10',  m: ['lats','traps','biceps'] },
+        { n: 'High Row-Maschine',          s: '3×8-12',  m: ['lats','traps'] },
+        { n: 'KH-Rudern',                  s: '3×8-12',  m: ['lats','biceps'] },
+        { n: 'Latzug Untergriff eng',      s: '3×8-12',  m: ['lats','biceps'] },
+        { n: 'Seil-Überzüge am Kabelturm', s: '4×12-15', m: ['lats','chest'] },
+      ]},
+      { nr: 3, titel: 'Schulter', uebungen: [
+        { n: 'Multipresse-Schulterdrücken', s: '4×8-12',  m: ['shoulders','triceps'] },
+        { n: 'Aufrechtes Rudern',          s: '3×8-12',  m: ['shoulders','traps'] },
+        { n: 'KH-Seitheben',               s: '3×12-15', m: ['shoulders'] },
+        { n: 'Reverse Butterfly-Maschine', s: '3×12-15', m: ['shoulders','traps'] },
+        { n: 'Schulterpresse',             s: '3×8-12',  m: ['shoulders','triceps'] },
+        { n: 'Planks',                     s: '4×1min',  m: ['abs','lowerback'] },
+      ]},
+      { nr: 4, titel: 'Beine', uebungen: [
+        { n: '45°-Beinpresse',             s: '4×6-10',  m: ['quads','glutes','hamstrings'] },
+        { n: 'LH-Ausfallschritte',         s: '3×8-12',  m: ['quads','glutes'] },
+        { n: 'Beinbeuger-Maschine liegend', s: '3×12-15', m: ['hamstrings'] },
+        { n: 'Beinstrecker-Maschine',      s: '3×8-12',  m: ['quads'] },
+        { n: 'Adduktoren-Maschine',        s: '3×12-15', m: ['hips','glutes'] },
+        { n: 'Wadenheben sitzend',         s: '3×8-12',  m: ['calves'] },
+      ]},
+      { nr: 5, titel: 'Arme', uebungen: [
+        { n: 'SZ-French Press',            s: '3×8-12',  m: ['triceps'] },
+        { n: 'Hammer Curls',               s: '4×8-12',  m: ['biceps','forearms'] },
+        { n: 'KH-Trizepsstrecken überkopf', s: '3×12-15', m: ['triceps'] },
+        { n: 'Bizepscurls am Kabelturm',   s: '4×12-15', m: ['biceps'] },
+        { n: 'Trizeps-Pushdown mit Seil',  s: '3×8-12',  m: ['triceps'] },
+        { n: 'Unterarm-Curls',             s: '3×8-12',  m: ['forearms'] },
+      ]},
+    ]
+  }
+};
+
+// Hilfsfunktionen für rollende Split-Pläne. Check-Schema 't<tagNr>_<index>',
+// parallel zu (NICHT vermischt mit) exerciseWeightKey.
+function splitCheckKey(tagNr, exIndex){ return `t${tagNr}_${exIndex}`; }
+function getSplitProgress(planId){
+  if(!state.splitFortschritt[planId]) state.splitFortschritt[planId] = { aktuellerTag: 1, checks: {} };
+  return state.splitFortschritt[planId];
+}
+function currentSplitDay(plan, prog){
+  return plan.tage.find(t => t.nr === prog.aktuellerTag) || plan.tage[0];
+}
+// Ist gerade ein rollender Split aktiv (statt des Hyrox-Plans)?
+function activeSplitPlan(){
+  return (state.aktiverPlan && state.aktiverPlan !== 'hyrox') ? SPLIT_PLAENE[state.aktiverPlan] : null;
+}
+
 // ===== DATA =====
 // Hyrox-Datum ist im UI editierbar (Tab "Verlauf" → Hyrox-Wettkampf). Gespeichert
 // als 'YYYY-MM-DD' in state.hyroxDate; bis Alex es setzt, gilt dieser Platzhalter.
@@ -1587,6 +1658,13 @@ function renderStreak(){
 
 // ===== RENDER: TODAY CARD =====
 function renderToday(){
+  // Rollender Split aktiv? Dann statt des Hyrox-Heute den aktuellen Split-Tag zeigen
+  // und die kalenderbasierten Hyrox-Sektionen (Diese Woche / Fortschritt) ausblenden.
+  const split = activeSplitPlan();
+  const hyroxOnly = document.getElementById('hyroxOnlyHeute');
+  if(hyroxOnly) hyroxOnly.style.display = split ? 'none' : '';
+  if(split){ renderSplitToday(split); return; }
+
   const now = new Date();
   const dow = now.getDay();
   const dk = todayKey(now);
@@ -1632,6 +1710,85 @@ function renderToday(){
       ${deloadNoteHtml(now, plan.type)}
     </div>
   `;
+}
+
+// Rendert den aktuellen Tag eines rollenden Split-Plans in die Heute-Karte.
+// Kein Kalender: der Tag ergibt sich aus aktuellerTag in state.splitFortschritt.
+function renderSplitToday(plan){
+  const prog = getSplitProgress(plan.id);
+  const tag = currentSplitDay(plan, prog);
+  const card = document.getElementById('todayCard');
+  const ex = tag.uebungen;
+  const allDone = ex.length > 0 && ex.every((_,i)=> prog.checks[splitCheckKey(tag.nr,i)]);
+
+  card.innerHTML = `
+    <div class="today-card type-egym">
+      <div class="today-label">${plan.name} · Tag ${tag.nr}/${plan.tage.length}</div>
+      <div class="today-title">Tag ${tag.nr} · ${tag.titel}</div>
+      <div class="today-sub">Rollender Plan – beim nächsten Gym-Besuch geht es hier weiter.</div>
+    </div>
+    <div class="day-detail" style="margin-top:12px">
+      <div class="exercise-list">
+        ${ex.map((e,i)=>{
+          const k = splitCheckKey(tag.nr,i);
+          const checked = !!prog.checks[k];
+          const hasMuscles = e.m && e.m.length;
+          return `
+            <div class="exercise-row">
+              <div class="exercise split-exercise" data-i="${i}">
+                <div class="exercise-check ${checked?'checked':''}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+                <div class="exercise-name-wrap">
+                  <div class="exercise-name ${checked?'done':''}">${e.n}</div>
+                </div>
+                <div class="exercise-sets">${e.s}</div>
+                ${hasMuscles ? `<button class="muscle-info-btn" data-mi="${i}" aria-label="Trainierte Muskeln anzeigen">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                </button>` : ''}
+              </div>
+              ${hasMuscles ? `<div class="muscle-panel" id="smp_${i}"></div>` : ''}
+            </div>`;
+        }).join('')}
+      </div>
+      ${allDone ? `<button class="split-finish-btn" id="splitFinishBtn">Tag abschließen →</button>` : ''}
+    </div>
+  `;
+
+  // Übung abhaken (Klick togglet den Check im rollenden Fortschritt)
+  card.querySelectorAll('.split-exercise').forEach(item=>{
+    item.onclick = (evt)=>{
+      if(evt.target.closest('.muscle-info-btn')) return;
+      const k = splitCheckKey(tag.nr, parseInt(item.dataset.i));
+      if(prog.checks[k]) delete prog.checks[k]; else prog.checks[k] = true;
+      saveState();
+      renderToday();
+    };
+  });
+
+  // Muskelinfo-Panel (gleiche Grafik wie im Hyrox-Plan)
+  card.querySelectorAll('.muscle-info-btn').forEach(btn=>{
+    btn.onclick = (evt)=>{
+      evt.stopPropagation();
+      const i = parseInt(btn.dataset.mi);
+      const panel = document.getElementById(`smp_${i}`);
+      const isOpen = panel.classList.contains('open');
+      card.querySelectorAll('.muscle-panel.open').forEach(p=> p.classList.remove('open'));
+      if(!isOpen){ panel.innerHTML = renderBodySvg(tag.uebungen[i].m || []); panel.classList.add('open'); }
+    };
+  });
+
+  // Tag abschließen: Checks dieses Tags leeren, einen Tag weiter (zyklisch), neu rendern
+  const finishBtn = document.getElementById('splitFinishBtn');
+  if(finishBtn){
+    finishBtn.onclick = ()=>{
+      tag.uebungen.forEach((_,i)=> delete prog.checks[splitCheckKey(tag.nr,i)]);
+      const idx = plan.tage.findIndex(t=>t.nr===tag.nr);
+      prog.aktuellerTag = plan.tage[(idx+1) % plan.tage.length].nr;
+      saveState();
+      renderToday();
+    };
+  }
 }
 
 // Baut die "Welches Training heute?"-Auswahlkarte für choice-Tage
@@ -2379,7 +2536,40 @@ function renderEsnContent(){
   });
 }
 
+// Plan-Auswahl: Hyrox-Wettkampf (bisheriger Plan) vs. rollende Split-Pläne.
+// Aktiver Plan ist markiert; Klick schaltet state.aktiverPlan um und rendert alles neu.
+function renderPlanAuswahl(){
+  const el = document.getElementById('planAuswahl');
+  if(!el) return;
+  const plaene = [
+    { id:'hyrox', name:'Hyrox-Wettkampf', desc:'Periodisierter Wettkampfplan · wochentaggebunden mit Phasen & Countdown' },
+    ...Object.values(SPLIT_PLAENE).map(p=>({
+      id:p.id, name:p.name,
+      desc:`${p.ziel==='muskelaufbau'?'Muskelaufbau':p.ziel} · Quelle ${p.quelle} · rollend (${p.tage.length} Tage)`
+    }))
+  ];
+  el.innerHTML = plaene.map(p=>{
+    const active = state.aktiverPlan === p.id;
+    return `
+      <button class="plan-card${active?' active':''}" data-plan="${p.id}">
+        <div class="plan-card-main">
+          <div class="plan-card-name">${p.name}</div>
+          <div class="plan-card-desc">${p.desc}</div>
+        </div>
+        ${active ? `<span class="plan-card-badge">aktiv</span>` : ''}
+      </button>`;
+  }).join('');
+  el.querySelectorAll('.plan-card').forEach(btn=>{
+    btn.onclick = ()=>{
+      state.aktiverPlan = btn.dataset.plan;
+      saveState();
+      renderAll();
+    };
+  });
+}
+
 function renderEsn(){
+  renderPlanAuswahl();
   if(!state.esnWeek) state.esnWeek = suggestedEsnWeek() || 1;
   renderEsnHint();
   renderEsnWeekToggle();
@@ -2443,6 +2633,8 @@ function defaultState(){
     lastBackup:null,  // todayKey des letzten Exports
     water:{},         // Wasser je Tag: { 'YYYY-MM-DD': anzahlGläser } (1 Glas = 250 ml)
     profile:{ name:'', weightKg:null, kcalTarget:null, startPhase:'base' }, // pro Gerät/Person
+    aktiverPlan:'hyrox',  // 'hyrox' = bisheriges Verhalten (Default!), sonst eine SPLIT_PLAENE-id
+    splitFortschritt:{},  // pro Split-Plan: { split_5er: { aktuellerTag:1, checks:{ 't1_0':true } } }
   };
 }
 
