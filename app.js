@@ -117,6 +117,51 @@ function splitRepTarget(s){
   return single ? parseInt(single[1], 10) : null;
 }
 
+// ===== ÜBUNGS-STATUS (pro Einheit/Woche, NICHT dauerhaft) =====
+// Vier Zustände: 'offen' (Default, Abwesenheit), 'normal', 'alternative', 'ausgelassen'.
+// Gilt für Hyrox-Wochenplan (state.exercises) UND Split (splitFortschritt.checks).
+// Migration: ein alter Boolean-Wert true = 'normal' (siehe migrateStatuses in loadState).
+const EX_STATES = ['normal', 'alternative', 'ausgelassen'];
+function normStatus(v){
+  if(v === true) return 'normal';                       // Legacy-Abhakung
+  return EX_STATES.includes(v) ? v : 'offen';
+}
+// Wochen-Fortschritt-Beitrag einer Übung: { num, den }.
+//   ausgelassen → 0/0 (zählt nicht) · normal/alternative → 1/1 · offen → 0/1
+function statusCounts(v){
+  const s = normStatus(v);
+  if(s === 'ausgelassen') return { num:0, den:0 };
+  if(s === 'normal' || s === 'alternative') return { num:1, den:1 };
+  return { num:0, den:1 };
+}
+// Baut die Status-UI-Bausteine (Check-Klassen, Name-Klasse, Alt-/Skip-Buttons, Badge)
+// für eine Übungszeile – von Hyrox- und Split-Render gemeinsam genutzt, damit beide
+// Systeme konsistent aussehen.
+function exStatusMarkup(v){
+  const s = normStatus(v);
+  const isNormal = s === 'normal', isAlt = s === 'alternative', isSkip = s === 'ausgelassen';
+  return {
+    rowClass:   s === 'offen' ? '' : ' status-' + s,
+    checkClass: isNormal ? ' checked' : (isAlt ? ' checked alt' : ''),
+    nameClass:  isNormal ? ' done' : (isSkip ? ' skipped' : ''),
+    badge:      isAlt ? `<span class="ex-alt-badge">Alt</span>` : '',
+    altBtn: `<button class="status-alt-btn${isAlt?' active':''}" aria-label="Mit Alternative gemacht" title="Mit Alternative gemacht (Gerät fehlte)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l4 4-4 4"/><path d="M20 7H7"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h13"/></svg>
+      </button>`,
+    skipBtn: `<button class="status-skip-btn${isSkip?' active':''}" aria-label="Ausgelassen" title="Ausgelassen – zählt nicht">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
+      </button>`,
+  };
+}
+// Setzt einen Status in einem Store (state.exercises ODER prog.checks). Bei 'offen'
+// wird der Key gelöscht (Abwesenheit = offen). Toggle: gleicher Status → offen.
+function setExStatus(store, key, target){
+  const cur = normStatus(store[key]);
+  const next = (cur === target) ? 'offen' : target;
+  if(next === 'offen') delete store[key];
+  else store[key] = next;
+}
+
 // ===== DATA =====
 // Hyrox-Datum ist im UI editierbar (Tab "Verlauf" → Hyrox-Wettkampf). Gespeichert
 // als 'YYYY-MM-DD' in state.hyroxDate; bis Alex es setzt, gilt dieser Platzhalter.
@@ -1108,10 +1153,27 @@ function loadState(){
     if(raw){
       // Defaults als Basis, gespeicherte Werte drüber → fehlende (neue) Keys
       // werden automatisch mit Defaults aufgefüllt.
-      return Object.assign(defaultState(), JSON.parse(raw));
+      return migrateStatuses(Object.assign(defaultState(), JSON.parse(raw)));
     }
   }catch(e){}
   return defaultState();
+}
+// Migriert das alte Boolean-Abhak-System auf Übungs-Status: ein gespeichertes
+// `true` wird zu 'normal' (erledigt bleibt erledigt), `false` zu offen (Key weg).
+// Betrifft Hyrox (state.exercises) und Split (splitFortschritt[*].checks).
+function migrateStatuses(s){
+  const conv = (obj)=>{
+    if(!obj) return;
+    for(const k in obj){
+      if(obj[k] === true) obj[k] = 'normal';
+      else if(!EX_STATES.includes(obj[k])) delete obj[k]; // false/ungültig = offen
+    }
+  };
+  conv(s.exercises);
+  if(s.splitFortschritt) for(const pid in s.splitFortschritt){
+    if(s.splitFortschritt[pid]) conv(s.splitFortschritt[pid].checks);
+  }
+  return s;
 }
 let saveWarned = false; // verhindert Alert-Spam bei wiederholtem Speicher-Fehler
 function saveState(){
@@ -1745,7 +1807,8 @@ function renderSplitToday(plan){
   const tag = currentSplitDay(plan, prog);
   const card = document.getElementById('todayCard');
   const ex = tag.uebungen;
-  const allDone = ex.length > 0 && ex.every((_,i)=> prog.checks[splitCheckKey(tag.nr,i)]);
+  // "Tag abschließen" sobald keine Übung mehr offen ist (ausgelassen zählt als erledigt).
+  const allDone = ex.length > 0 && ex.every((_,i)=> normStatus(prog.checks[splitCheckKey(tag.nr,i)]) !== 'offen');
 
   card.innerHTML = `
     <div class="today-card type-egym">
@@ -1757,7 +1820,7 @@ function renderSplitToday(plan){
       <div class="exercise-list">
         ${ex.map((e,i)=>{
           const k = splitCheckKey(tag.nr,i);
-          const checked = !!prog.checks[k];
+          const st = exStatusMarkup(prog.checks[k]);
           const hasMuscles = e.m && e.m.length;
           const d = draft[k] || {};
           const last = lastSplitLog(plan.id, k);
@@ -1778,17 +1841,19 @@ function renderSplitToday(plan){
           }
           return `
             <div class="exercise-row">
-              <div class="exercise split-exercise" data-i="${i}">
-                <div class="exercise-check ${checked?'checked':''}">
+              <div class="exercise split-exercise${st.rowClass}" data-i="${i}">
+                <div class="exercise-check${st.checkClass}">
                   <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                 </div>
                 <div class="exercise-name-wrap">
-                  <div class="exercise-name ${checked?'done':''}">${e.n}</div>
+                  <div class="exercise-name${st.nameClass}">${e.n}${st.badge}</div>
                 </div>
                 <div class="exercise-sets">${e.s}</div>
                 ${hasMuscles ? `<button class="muscle-info-btn" data-mi="${i}" aria-label="Trainierte Muskeln anzeigen">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                 </button>` : ''}
+                ${st.altBtn}
+                ${st.skipBtn}
               </div>
               <div class="split-log" data-i="${i}">
                 <input type="number" inputmode="decimal" step="0.5" class="split-log-kg" ${kgVal} placeholder="${kgPh}" aria-label="Gewicht in kg">
@@ -1805,15 +1870,20 @@ function renderSplitToday(plan){
     </div>
   `;
 
-  // Übung abhaken (Klick togglet den Check im rollenden Fortschritt)
+  // Haupt-Tap = 'normal' togglen; Alt-/Skip-Buttons setzen ihren Status ↔ offen.
   card.querySelectorAll('.split-exercise').forEach(item=>{
     item.onclick = (evt)=>{
-      if(evt.target.closest('.muscle-info-btn')) return;
-      const k = splitCheckKey(tag.nr, parseInt(item.dataset.i));
-      if(prog.checks[k]) delete prog.checks[k]; else prog.checks[k] = true;
+      if(evt.target.closest('.muscle-info-btn') || evt.target.closest('.status-alt-btn') || evt.target.closest('.status-skip-btn')) return;
+      setExStatus(prog.checks, splitCheckKey(tag.nr, parseInt(item.dataset.i)), 'normal');
       saveState();
       renderToday();
     };
+  });
+  card.querySelectorAll('.status-alt-btn').forEach(btn=>{
+    btn.onclick = (evt)=>{ evt.stopPropagation(); setExStatus(prog.checks, splitCheckKey(tag.nr, parseInt(btn.closest('.split-exercise').dataset.i)), 'alternative'); saveState(); renderToday(); };
+  });
+  card.querySelectorAll('.status-skip-btn').forEach(btn=>{
+    btn.onclick = (evt)=>{ evt.stopPropagation(); setExStatus(prog.checks, splitCheckKey(tag.nr, parseInt(btn.closest('.split-exercise').dataset.i)), 'ausgelassen'); saveState(); renderToday(); };
   });
 
   // kg/Wdh-Eingabe: sofort in den Entwurf persistieren (kein Re-Render → kein
@@ -1856,7 +1926,8 @@ function renderSplitToday(plan){
       tag.uebungen.forEach((_,i)=>{
         const k = splitCheckKey(tag.nr, i);
         const d = draft[k];
-        if(d && (d.kg !== '' || d.reps !== '')){
+        const skipped = normStatus(prog.checks[k]) === 'ausgelassen';
+        if(!skipped && d && (d.kg !== '' || d.reps !== '')){
           if(!state.splitLog[plan.id][k]) state.splitLog[plan.id][k] = [];
           state.splitLog[plan.id][k].push({
             date: today,
@@ -1979,7 +2050,7 @@ function renderDayDetailContent(plan, dow, dk, isChoice, variantKey){
       <div class="exercise-list">
         ${plan.exercises.map((ex,i)=>{
           const k = `${dk}_${i}`;
-          const checked = !!state.exercises[k];
+          const st = exStatusMarkup(state.exercises[k]);
           const isHeader = ex.n.startsWith('—');
           if(isHeader){
             return `<div class="exercise-divider">${ex.n}</div>`;
@@ -1998,12 +2069,12 @@ function renderDayDetailContent(plan, dow, dk, isChoice, variantKey){
           }
           return `
             <div class="exercise-row">
-              <div class="exercise" data-k="${k}">
-                <div class="exercise-check ${checked?'checked':''}">
+              <div class="exercise${st.rowClass}" data-k="${k}">
+                <div class="exercise-check${st.checkClass}">
                   <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                 </div>
                 <div class="exercise-name-wrap">
-                  <div class="exercise-name ${checked?'done':''}">${ex.n}</div>
+                  <div class="exercise-name${st.nameClass}">${ex.n}${st.badge}</div>
                   ${lastSummary ? `<div class="exercise-last-weight">zuletzt: ${lastSummary}</div>` : ''}
                 </div>
                 <div class="exercise-sets">${ex.s}</div>
@@ -2016,6 +2087,8 @@ function renderDayDetailContent(plan, dow, dk, isChoice, variantKey){
                 ${hasMuscles ? `<button class="muscle-info-btn" data-mi="${k}" aria-label="Trainierte Muskeln anzeigen">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                 </button>` : ''}
+                ${st.altBtn}
+                ${st.skipBtn}
               </div>
               ${hasMuscles ? `<div class="muscle-panel" id="mp_${k}"></div>` : ''}
               ${isMachine ? `<div class="weight-panel" id="wp_${wKey}_${dk}"></div>` : ''}
@@ -2045,18 +2118,30 @@ function renderDayDetailContent(plan, dow, dk, isChoice, variantKey){
       renderDayDetail();
     };
   }
+  // Nach jeder Status-Änderung: Tag-Completion neu berechnen + abhängige Views rendern.
+  const afterStatus = ()=>{
+    checkDayCompletion(dk, dow);
+    saveState();
+    renderDayDetail();
+    renderProgress();
+    renderStreak();
+    renderToday();
+  };
+  // Haupt-Tap = 'normal' togglen (wie bisher das Abhaken).
   el.querySelectorAll('.exercise').forEach(item=>{
     item.onclick = (evt)=>{
-      if(evt.target.closest('.muscle-info-btn') || evt.target.closest('.weight-btn') || evt.target.closest('.perf-btn')) return;
-      const k = item.dataset.k;
-      state.exercises[k] = !state.exercises[k];
-      checkDayCompletion(dk, dow);
-      saveState();
-      renderDayDetail();
-      renderProgress();
-      renderStreak();
-      renderToday();
+      if(evt.target.closest('.muscle-info-btn') || evt.target.closest('.weight-btn') || evt.target.closest('.perf-btn')
+         || evt.target.closest('.status-alt-btn') || evt.target.closest('.status-skip-btn')) return;
+      setExStatus(state.exercises, item.dataset.k, 'normal');
+      afterStatus();
     };
+  });
+  // Alternative / ausgelassen: eigene Buttons, jeder togglet seinen Status ↔ offen.
+  el.querySelectorAll('.status-alt-btn').forEach(btn=>{
+    btn.onclick = (evt)=>{ evt.stopPropagation(); setExStatus(state.exercises, btn.closest('.exercise').dataset.k, 'alternative'); afterStatus(); };
+  });
+  el.querySelectorAll('.status-skip-btn').forEach(btn=>{
+    btn.onclick = (evt)=>{ evt.stopPropagation(); setExStatus(state.exercises, btn.closest('.exercise').dataset.k, 'ausgelassen'); afterStatus(); };
   });
 
   // Muskelinfo-Buttons: Panel mit Körpergrafik auf-/zuklappen
@@ -2198,26 +2283,43 @@ function checkDayCompletion(dk, dow){
   const entry = planEntry(dow, dateFromKey(dk));
   const plan = entry.type === 'choice' ? resolvePlan(dow, dk) : entry;
   if(!plan) { state.completedDays[dk] = false; return; }
-  const realExercises = plan.exercises.filter(ex=>!ex.n.startsWith('—'));
-  const allDone = plan.exercises.every((ex,i)=> ex.n.startsWith('—') || state.exercises[`${dk}_${i}`]);
-  state.completedDays[dk] = realExercises.length > 0 && allDone;
+  // Tag gilt als erledigt, wenn keine Übung mehr 'offen' ist und mindestens eine
+  // normal/alternativ gemacht wurde (ein komplett ausgelassener Tag ist kein Training).
+  let real = 0, anyOpen = false, anyDone = false;
+  plan.exercises.forEach((ex,i)=>{
+    if(ex.n.startsWith('—')) return;
+    real++;
+    const s = normStatus(state.exercises[`${dk}_${i}`]);
+    if(s === 'offen') anyOpen = true;
+    else if(s === 'normal' || s === 'alternative') anyDone = true;
+  });
+  state.completedDays[dk] = real > 0 && !anyOpen && anyDone;
 }
 
 // ===== RENDER: WEEK PROGRESS =====
 function renderProgress(){
+  // Zählt je Übung über alle 7 Tage der Woche: Zähler = normal+alternative,
+  // Nenner = alle Übungen außer 'ausgelassen'. So sind 100 % erreichbar.
   const dates = getWeekDates();
-  let done = 0;
+  let num = 0, den = 0;
   dates.forEach(d=>{
+    const dow = d.getDay();
     const dk = todayKey(d);
-    if(state.completedDays[dk]) done++;
+    const entry = planEntry(dow, d);
+    const plan = entry.type === 'choice' ? resolvePlan(dow, dk) : entry;
+    if(!plan || !plan.exercises) return; // z.B. noch nicht gewählter Choice-Tag
+    plan.exercises.forEach((ex,i)=>{
+      if(ex.n.startsWith('—')) return;
+      const c = statusCounts(state.exercises[`${dk}_${i}`]);
+      num += c.num; den += c.den;
+    });
   });
-  const total = 7;
-  const pct = Math.round(done/total*100);
+  const pct = den > 0 ? Math.round(num/den*100) : 0; // Sonderfall: alles ausgelassen → kein NaN
   const circumference = 125.6;
   const offset = circumference - (pct/100*circumference);
   document.getElementById('ringFg').style.strokeDashoffset = offset;
-  document.getElementById('ringPct').textContent = pct + '%';
-  document.getElementById('progressLabel').textContent = `${done} von ${total}`;
+  document.getElementById('ringPct').textContent = den > 0 ? pct + '%' : '–';
+  document.getElementById('progressLabel').textContent = den > 0 ? `${num} von ${den}` : 'keine Übungen';
 }
 
 // ===== RENDER: WOCHEN-VOLUMEN (Verlauf) =====
