@@ -618,20 +618,24 @@ const PHASES = [
 function weeksUntilRace(d){
   return Math.ceil((getHyroxDate() - d) / (7*24*60*60*1000));
 }
-// Offset in Wochen für einen späteren Einstieg in die Periodisierung. Fittere
-// Nutzer können den langen Grundaufbau überspringen (base→0, build→7, specific→12,
-// berechnet aus den minWeeks). Wirkt NUR auf die Phasenwahl – NICHT auf
-// weeksUntilRace, damit Countdown/Deload/Sim-Logik am echten Renndatum hängen.
-function phaseStartOffset(){
+// Index der im Profil gewählten Einstiegs-Phase (base=0 … taper=3). Fittere Nutzer
+// können den langen Grundaufbau überspringen. Wirkt NUR auf die Phasenwahl – NICHT
+// auf weeksUntilRace, damit Countdown/Deload/Sim-Logik am echten Renndatum hängen.
+function startPhaseIndex(){
   const key = state.profile && state.profile.startPhase;
-  if(!key || key === 'base') return 0;
-  const chosen = PHASES.find(p => p.key === key);
-  return chosen ? (PHASES[0].minWeeks - chosen.minWeeks) : 0;
+  if(!key) return 0;
+  const i = PHASES.findIndex(p => p.key === key);
+  return i < 0 ? 0 : i;
 }
-// Aktive Phase für ein Datum: erste Phase, deren minWeeks <= effektive Wochen ist.
+// Aktive Phase für ein Datum: erste Phase, deren minWeeks <= Wochen bis zum Rennen –
+// aber mindestens die gewählte Einstiegs-Phase. Der Einstieg ist eine UNTERGRENZE,
+// keine Fixierung: liegt das Datum ohnehin schon in einer späteren Phase, gewinnt
+// die spätere (höherer Index), damit niemand vor dem Rennen im Aufbau hängen bleibt.
 function phaseForDate(d){
-  const weeks = weeksUntilRace(d) - phaseStartOffset();
-  return PHASES.find(p => weeks >= p.minWeeks) || PHASES[PHASES.length-1];
+  const weeks = weeksUntilRace(d);
+  let dateIdx = PHASES.findIndex(p => weeks >= p.minWeeks);
+  if(dateIdx < 0) dateIdx = PHASES.length - 1; // Renntag/danach: Taper
+  return PHASES[Math.max(dateIdx, startPhaseIndex())];
 }
 // Ist d der (editierbare) Renntag? Vergleich auf Kalendertag, kein UTC.
 function isRaceDay(d){
