@@ -21,11 +21,68 @@ const MUSCLE_INFO = {
   forearms:   { label:'Unterarme',         view:'both'  },
 };
 
+// ===== ÜBUNGS-BIBLIOTHEK (nur für Split-Pläne) =====
+// Jede Übung wird hier EINMAL definiert: n = Anzeigename, m = Muskel-Codes aus
+// MUSCLE_INFO. Die Split-Pläne referenzieren nur noch per { ref, s } – so muss eine
+// Übung, die in mehreren Plänen (3er, 4er, 5er …) vorkommt, nicht neu ausgeschrieben
+// werden. Sätze/Wdh (s) bleiben BEWUSST beim Plan, weil dieselbe Übung je Plan
+// anders dosiert sein kann. Gilt NICHT für den Hyrox-Wochenplan/ESN-Plan – die
+// behalten ihr inline-Format { n, s, m }.
+const UEBUNGEN = {
+  // Brust
+  kh_schraegbankdruecken:      { n: 'KH-Schrägbankdrücken',        m: ['chest','shoulders','triceps'] },
+  brustpresse:                 { n: 'Brustpresse',                 m: ['chest'] },
+  butterfly_kabelturm:         { n: 'Butterfly am Kabelturm',      m: ['chest'] },
+  dips:                        { n: 'Dips',                        m: ['chest','triceps'] },
+  crunches_kabelturm:          { n: 'Crunches am Kabelturm',       m: ['abs'] },
+  // Rücken
+  lh_rudern:                   { n: 'LH-Rudern',                   m: ['lats','traps','biceps'] },
+  high_row_maschine:           { n: 'High Row-Maschine',           m: ['lats','traps'] },
+  kh_rudern:                   { n: 'KH-Rudern',                   m: ['lats','biceps'] },
+  latzug_untergriff_eng:       { n: 'Latzug Untergriff eng',       m: ['lats','biceps'] },
+  seil_ueberzuege_kabelturm:   { n: 'Seil-Überzüge am Kabelturm',  m: ['lats','chest'] },
+  // Schulter
+  multipresse_schulterdruecken:{ n: 'Multipresse-Schulterdrücken', m: ['shoulders','triceps'] },
+  aufrechtes_rudern:           { n: 'Aufrechtes Rudern',           m: ['shoulders','traps'] },
+  kh_seitheben:                { n: 'KH-Seitheben',                m: ['shoulders'] },
+  reverse_butterfly_maschine:  { n: 'Reverse Butterfly-Maschine',  m: ['shoulders','traps'] },
+  schulterpresse:              { n: 'Schulterpresse',              m: ['shoulders','triceps'] },
+  // Beine
+  beinpresse_45:               { n: '45°-Beinpresse',              m: ['quads','glutes','hamstrings'] },
+  lh_ausfallschritte:          { n: 'LH-Ausfallschritte',          m: ['quads','glutes'] },
+  beinbeuger_liegend:          { n: 'Beinbeuger-Maschine liegend', m: ['hamstrings'] },
+  beinstrecker:                { n: 'Beinstrecker-Maschine',       m: ['quads'] },
+  adduktoren:                  { n: 'Adduktoren-Maschine',         m: ['hips','glutes'] },
+  wadenheben_sitzend:          { n: 'Wadenheben sitzend',          m: ['calves'] },
+  // Arme
+  sz_french_press:             { n: 'SZ-French Press',             m: ['triceps'] },
+  hammer_curls:                { n: 'Hammer Curls',                m: ['biceps','forearms'] },
+  kh_trizepsstrecken_ueberkopf:{ n: 'KH-Trizepsstrecken überkopf', m: ['triceps'] },
+  bizepscurls_kabelturm:       { n: 'Bizepscurls am Kabelturm',    m: ['biceps'] },
+  trizeps_pushdown_seil:       { n: 'Trizeps-Pushdown mit Seil',   m: ['triceps'] },
+  unterarm_curls:              { n: 'Unterarm-Curls',              m: ['forearms'] },
+  // Rumpf
+  planks:                      { n: 'Planks',                      m: ['abs','lowerback'] },
+};
+// Löst einen Plan-Eintrag { ref, s } in die volle Form { n, m, s } auf, die der
+// Render-Code erwartet (identisch zum früheren Inline-Format). Unbekannte ref darf
+// nicht crashen: Key als Name anzeigen, keine Muskeln, Warnung in der Konsole.
+function resolveUebung(eintrag){
+  const base = UEBUNGEN[eintrag.ref];
+  if(!base){
+    console.warn('Unbekannte Übungs-Referenz:', eintrag.ref);
+    return { n: eintrag.ref, m: [], s: eintrag.s };
+  }
+  return { n: base.n, m: base.m, s: eintrag.s };
+}
+
 // ===== SPLIT-PLÄNE (rollend, NICHT wochentag-gebunden) =====
 // Parallel zur bestehenden Hyrox-Logik. Ein Split-Plan hat nummerierte Tage, die
 // rollend durchlaufen werden: der aktuelle Tag ergibt sich aus den Abhakungen,
 // nicht aus dem Kalender (siehe state.splitFortschritt + renderSplitToday).
-// Übungsform wie bei Hyrox: { n:Name, s:'Sätze×Wdh', m:[Muskel-Codes aus MUSCLE_INFO] }.
+// Übungsform: { ref:Key aus UEBUNGEN, s:'Sätze×Wdh' } – aufgelöst über resolveUebung.
+// ACHTUNG: Die Reihenfolge je Tag ist der Log-Schlüssel ('t<tag>_<index>') – beim
+// Bearbeiten NICHT umsortieren, sonst zeigt "letztes Mal" fremde Werte.
 const SPLIT_PLAENE = {
   split_5er: {
     id: 'split_5er',
@@ -36,42 +93,42 @@ const SPLIT_PLAENE = {
     tagModus: 'rollend',   // NICHT wochentag-gebunden
     tage: [
       { nr: 1, titel: 'Brust', uebungen: [
-        { n: 'KH-Schrägbankdrücken',       s: '4×6-10',  m: ['chest','shoulders','triceps'] },
-        { n: 'Brustpresse',                s: '4×8-12',  m: ['chest'] },
-        { n: 'Butterfly am Kabelturm',     s: '4×12-15', m: ['chest'] },
-        { n: 'Dips',                       s: '3×max',   m: ['chest','triceps'] },
-        { n: 'Crunches am Kabelturm',      s: '3×12-15', m: ['abs'] },
+        { ref: 'kh_schraegbankdruecken',       s: '4×6-10'  },
+        { ref: 'brustpresse',                  s: '4×8-12'  },
+        { ref: 'butterfly_kabelturm',          s: '4×12-15' },
+        { ref: 'dips',                         s: '3×max'   },
+        { ref: 'crunches_kabelturm',           s: '3×12-15' },
       ]},
       { nr: 2, titel: 'Rücken', uebungen: [
-        { n: 'LH-Rudern',                  s: '4×6-10',  m: ['lats','traps','biceps'] },
-        { n: 'High Row-Maschine',          s: '3×8-12',  m: ['lats','traps'] },
-        { n: 'KH-Rudern',                  s: '3×8-12',  m: ['lats','biceps'] },
-        { n: 'Latzug Untergriff eng',      s: '3×8-12',  m: ['lats','biceps'] },
-        { n: 'Seil-Überzüge am Kabelturm', s: '4×12-15', m: ['lats','chest'] },
+        { ref: 'lh_rudern',                    s: '4×6-10'  },
+        { ref: 'high_row_maschine',            s: '3×8-12'  },
+        { ref: 'kh_rudern',                    s: '3×8-12'  },
+        { ref: 'latzug_untergriff_eng',        s: '3×8-12'  },
+        { ref: 'seil_ueberzuege_kabelturm',    s: '4×12-15' },
       ]},
       { nr: 3, titel: 'Schulter', uebungen: [
-        { n: 'Multipresse-Schulterdrücken', s: '4×8-12',  m: ['shoulders','triceps'] },
-        { n: 'Aufrechtes Rudern',          s: '3×8-12',  m: ['shoulders','traps'] },
-        { n: 'KH-Seitheben',               s: '3×12-15', m: ['shoulders'] },
-        { n: 'Reverse Butterfly-Maschine', s: '3×12-15', m: ['shoulders','traps'] },
-        { n: 'Schulterpresse',             s: '3×8-12',  m: ['shoulders','triceps'] },
-        { n: 'Planks',                     s: '4×1min',  m: ['abs','lowerback'] },
+        { ref: 'multipresse_schulterdruecken', s: '4×8-12'  },
+        { ref: 'aufrechtes_rudern',            s: '3×8-12'  },
+        { ref: 'kh_seitheben',                 s: '3×12-15' },
+        { ref: 'reverse_butterfly_maschine',   s: '3×12-15' },
+        { ref: 'schulterpresse',               s: '3×8-12'  },
+        { ref: 'planks',                       s: '4×1min'  },
       ]},
       { nr: 4, titel: 'Beine', uebungen: [
-        { n: '45°-Beinpresse',             s: '4×6-10',  m: ['quads','glutes','hamstrings'] },
-        { n: 'LH-Ausfallschritte',         s: '3×8-12',  m: ['quads','glutes'] },
-        { n: 'Beinbeuger-Maschine liegend', s: '3×12-15', m: ['hamstrings'] },
-        { n: 'Beinstrecker-Maschine',      s: '3×8-12',  m: ['quads'] },
-        { n: 'Adduktoren-Maschine',        s: '3×12-15', m: ['hips','glutes'] },
-        { n: 'Wadenheben sitzend',         s: '3×8-12',  m: ['calves'] },
+        { ref: 'beinpresse_45',                s: '4×6-10'  },
+        { ref: 'lh_ausfallschritte',           s: '3×8-12'  },
+        { ref: 'beinbeuger_liegend',           s: '3×12-15' },
+        { ref: 'beinstrecker',                 s: '3×8-12'  },
+        { ref: 'adduktoren',                   s: '3×12-15' },
+        { ref: 'wadenheben_sitzend',           s: '3×8-12'  },
       ]},
       { nr: 5, titel: 'Arme', uebungen: [
-        { n: 'SZ-French Press',            s: '3×8-12',  m: ['triceps'] },
-        { n: 'Hammer Curls',               s: '4×8-12',  m: ['biceps','forearms'] },
-        { n: 'KH-Trizepsstrecken überkopf', s: '3×12-15', m: ['triceps'] },
-        { n: 'Bizepscurls am Kabelturm',   s: '4×12-15', m: ['biceps'] },
-        { n: 'Trizeps-Pushdown mit Seil',  s: '3×8-12',  m: ['triceps'] },
-        { n: 'Unterarm-Curls',             s: '3×8-12',  m: ['forearms'] },
+        { ref: 'sz_french_press',              s: '3×8-12'  },
+        { ref: 'hammer_curls',                 s: '4×8-12'  },
+        { ref: 'kh_trizepsstrecken_ueberkopf', s: '3×12-15' },
+        { ref: 'bizepscurls_kabelturm',        s: '4×12-15' },
+        { ref: 'trizeps_pushdown_seil',        s: '3×8-12'  },
+        { ref: 'unterarm_curls',               s: '3×8-12'  },
       ]},
     ]
   }
@@ -1810,7 +1867,9 @@ function renderSplitToday(plan){
   const draft = getSplitDraft(plan.id);
   const tag = currentSplitDay(plan, prog);
   const card = document.getElementById('todayCard');
-  const ex = tag.uebungen;
+  // Referenzen ({ref,s}) einmalig in die volle Form {n,m,s} auflösen – Reihenfolge
+  // bleibt 1:1 erhalten, damit die Log-Schlüssel 't<tag>_<index>' weiter passen.
+  const ex = tag.uebungen.map(e => resolveUebung(e));
   // "Tag abschließen" sobald keine Übung mehr offen ist (ausgelassen zählt als erledigt).
   const allDone = ex.length > 0 && ex.every((_,i)=> normStatus(prog.checks[splitCheckKey(tag.nr,i)]) !== 'offen');
 
@@ -1916,7 +1975,7 @@ function renderSplitToday(plan){
       const panel = document.getElementById(`smp_${i}`);
       const isOpen = panel.classList.contains('open');
       card.querySelectorAll('.muscle-panel.open').forEach(p=> p.classList.remove('open'));
-      if(!isOpen){ panel.innerHTML = renderBodySvg(tag.uebungen[i].m || []); panel.classList.add('open'); }
+      if(!isOpen){ panel.innerHTML = renderBodySvg(ex[i].m || []); panel.classList.add('open'); }
     };
   });
 
