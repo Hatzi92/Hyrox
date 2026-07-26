@@ -1149,56 +1149,208 @@ const FOOD_PLAN = {
       {name:'Kartoffeln', grams:100},
     ]},
   ], zirkelMeals:[
-    {time:'9:30 Frühstück', name:'Quark-Schüssel', kcal:'~400 kcal', items:'250 g Magerquark · 30 g Haferflocken · Beeren · 1 EL Honig'},
-    {time:'12:00 Mittag', name:'Hähnchen & Reis', kcal:'~580 kcal', items:'180 g Hähnchenbrust · 150 g Reis · Paprika/Gurke roh'},
-    {time:'16:00 Pre-Workout', name:'Skyr & Banane', kcal:'~450 kcal', items:'250 g Skyr · Banane · 20 g Erdnussmus · gut verdaulich vor dem Training'},
+    {time:'9:30 Frühstück', name:'Quark-Schüssel', kcal:'~400 kcal', items:[
+      {name:'Magerquark', grams:250},
+      {name:'Haferflocken', grams:30},
+      {name:'Beeren', frei:true},
+      {name:'Honig', amount:'1 EL', frei:true},
+    ]},
+    {time:'12:00 Mittag', name:'Hähnchen & Reis', kcal:'~580 kcal', items:[
+      {name:'Hähnchenbrust', grams:180},
+      {name:'Reis', grams:150},
+      {name:'Paprika/Gurke roh', frei:true},
+    ]},
+    {time:'16:00 Pre-Workout', name:'Skyr & Banane', kcal:'~450 kcal', items:[
+      {name:'Skyr', grams:250},
+      {name:'Banane', frei:true},
+      {name:'Erdnussmus', grams:20},
+      {name:'gut verdaulich vor dem Training', frei:true},
+    ]},
     {time:'18:00 Training', name:'Zirkeltraining · Physio Loft', kcal:'', items:'~45-60 Min · Wasserflasche mitnehmen', marker:true},
-    {time:'19:45 Nach Training', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:'Shake oder Quark + Obst, binnen 1-2h nach Training'},
-    {time:'21:00 Abend', name:'Lachs & Gemüse', kcal:'~520 kcal', items:'180 g Lachs im Ofen · Brokkoli · 100 g Kartoffeln'},
+    {time:'19:45 Nach Training', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:[
+      {name:'Shake oder Quark + Obst, binnen 1-2h nach Training', frei:true},
+    ]},
+    {time:'21:00 Abend', name:'Lachs & Gemüse', kcal:'~520 kcal', items:[
+      {name:'Lachs', zusatz:'im Ofen', grams:180},
+      {name:'Brokkoli', frei:true},
+      {name:'Kartoffeln', grams:100},
+    ]},
   ]},
   2: { day:'Di', meals:[
-    {time:'9:30 Frühstück', name:'Overnight Oats', kcal:'~420 kcal', items:'40 g Haferflocken · 200 ml Milch · 150 g Joghurt · Beeren'},
-    {time:'12:15 Mittag', name:'Putenhack-Bowl', kcal:'~560 kcal', items:'200 g Putenhack · 100 g Reisnudeln · Zucchini · Sojasoße'},
-    {time:'Snacks Vorm.+Nachm.', name:'Quark-Bowl & Obst', kcal:'~800 kcal', items:'250 g Magerquark · 40 g Haferflocken · Banane · 30 g Nüsse · Apfel'},
-    {time:'19:00 Abend', name:'Eier & Gemüse', kcal:'~480 kcal', items:'3 Eier · 100 g Feta · Spinat · 1 Scheibe Vollkornbrot'},
+    {time:'9:30 Frühstück', name:'Overnight Oats', kcal:'~420 kcal', items:[
+      {name:'Haferflocken', grams:40},
+      {name:'Milch', grams:200, einheit:'ml'},
+      {name:'Joghurt', grams:150},
+      {name:'Beeren', frei:true},
+    ]},
+    {time:'12:15 Mittag', name:'Putenhack-Bowl', kcal:'~560 kcal', items:[
+      {name:'Putenhack', grams:200},
+      {name:'Reisnudeln', grams:100},
+      {name:'Zucchini', frei:true},
+      {name:'Sojasoße', frei:true},
+    ]},
+    {time:'Snacks Vorm.+Nachm.', name:'Quark-Bowl & Obst', kcal:'~800 kcal', items:[
+      {name:'Magerquark', grams:250},
+      {name:'Haferflocken', grams:40},
+      {name:'Banane', frei:true},
+      {name:'Nüsse', grams:30},
+      {name:'Apfel', frei:true},
+    ]},
+    {time:'19:00 Abend', name:'Eier & Gemüse', kcal:'~480 kcal', items:[
+      {name:'Eier', stueck:3},
+      {name:'Feta', grams:100},
+      {name:'Spinat', frei:true},
+      {name:'Vollkornbrot', amount:'1 Scheibe', frei:true},
+    ]},
   ]},
   3: { day:'Mi', meals:[
-    {time:'9:30 Frühstück', name:'Skyr-Bowl', kcal:'~430 kcal', items:'200 g Skyr · 30 g Granola · Obst'},
-    {time:'12:00 Mittag', name:'Rinderhack & Süßkartoffel', kcal:'~600 kcal', items:'200 g mageres Rinderhack · 150 g Süßkartoffeln · Möhren'},
-    {time:'Snacks Vorm.+Nachm.', name:'Hüttenkäse & Banane', kcal:'~770 kcal', items:'200 g Hüttenkäse · 1 Scheibe Vollkornbrot · Banane · 30 g Nüsse'},
-    {time:'19:00 Abend', name:'Thunfisch-Bowl', kcal:'~450 kcal', items:'2 Dosen Thunfisch · 80 g Quinoa · Gurke · Tomaten · Zitrone'},
+    {time:'9:30 Frühstück', name:'Skyr-Bowl', kcal:'~430 kcal', items:[
+      {name:'Skyr', grams:200},
+      {name:'Granola', grams:30},
+      {name:'Obst', frei:true},
+    ]},
+    {time:'12:00 Mittag', name:'Rinderhack & Süßkartoffel', kcal:'~600 kcal', items:[
+      {name:'Rinderhack', vorsatz:'mageres', grams:200},
+      {name:'Süßkartoffeln', grams:150},
+      {name:'Möhren', frei:true},
+    ]},
+    {time:'Snacks Vorm.+Nachm.', name:'Hüttenkäse & Banane', kcal:'~770 kcal', items:[
+      {name:'Hüttenkäse', grams:200},
+      {name:'Vollkornbrot', amount:'1 Scheibe', frei:true},
+      {name:'Banane', frei:true},
+      {name:'Nüsse', grams:30},
+    ]},
+    {time:'19:00 Abend', name:'Thunfisch-Bowl', kcal:'~450 kcal', items:[
+      {name:'Thunfisch', amount:'2 Dosen', frei:true},
+      {name:'Quinoa', grams:80},
+      {name:'Gurke', frei:true},
+      {name:'Tomaten', frei:true},
+      {name:'Zitrone', frei:true},
+    ]},
   ]},
   4: { day:'Do', meals:[
-    {time:'9:30 Frühstück', name:'Joghurt-Schüssel', kcal:'~380 kcal', items:'200 g griech. Joghurt 0% · Leinsamen · Banane · Beeren'},
-    {time:'12:15 Mittag', name:'Linsensuppe + Hähnchen', kcal:'~500 kcal', items:'250 ml Linsensuppe + 150 g Hähnchen dazu'},
-    {time:'Nach Zirkel', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:'Shake oder Quark, binnen 1-2h nach Training'},
-    {time:'16:30 Snack', name:'Skyr & Nüsse', kcal:'~600 kcal', items:'250 g Skyr · 30 g Nüsse · Banane · 1 EL Honig'},
-    {time:'19:00 Abend', name:'Omelett', kcal:'~480 kcal', items:'4 Eier · 80 g Feta · Spinat · Tomaten · 1 Scheibe Vollkornbrot'},
+    {time:'9:30 Frühstück', name:'Joghurt-Schüssel', kcal:'~380 kcal', items:[
+      {name:'Joghurt', vorsatz:'griech.', zusatz:'0%', grams:200},
+      {name:'Leinsamen', frei:true},
+      {name:'Banane', frei:true},
+      {name:'Beeren', frei:true},
+    ]},
+    {time:'12:15 Mittag', name:'Linsensuppe + Hähnchen', kcal:'~500 kcal', items:[
+      {name:'Linsensuppe', grams:250, einheit:'ml'},
+      {name:'Hähnchen', zusatz:'dazu', grams:150},
+    ]},
+    {time:'Nach Zirkel', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:[
+      {name:'Shake oder Quark, binnen 1-2h nach Training', frei:true},
+    ]},
+    {time:'16:30 Snack', name:'Skyr & Nüsse', kcal:'~600 kcal', items:[
+      {name:'Skyr', grams:250},
+      {name:'Nüsse', grams:30},
+      {name:'Banane', frei:true},
+      {name:'Honig', amount:'1 EL', frei:true},
+    ]},
+    {time:'19:00 Abend', name:'Omelett', kcal:'~480 kcal', items:[
+      {name:'Eier', stueck:4},
+      {name:'Feta', grams:80},
+      {name:'Spinat', frei:true},
+      {name:'Tomaten', frei:true},
+      {name:'Vollkornbrot', amount:'1 Scheibe', frei:true},
+    ]},
   ], zirkelMeals:[
-    {time:'9:30 Frühstück', name:'Joghurt-Schüssel', kcal:'~380 kcal', items:'200 g griech. Joghurt 0% · Leinsamen · Banane · Beeren'},
-    {time:'12:15 Mittag', name:'Linsensuppe + Hähnchen', kcal:'~500 kcal', items:'250 ml Linsensuppe + 150 g Hähnchen dazu'},
-    {time:'15:45 Pre-Workout', name:'Skyr & Nüsse', kcal:'~600 kcal', items:'250 g Skyr · 30 g Nüsse · Banane · 1 EL Honig · etwas früher, da Nüsse langsamer verdauen'},
+    {time:'9:30 Frühstück', name:'Joghurt-Schüssel', kcal:'~380 kcal', items:[
+      {name:'Joghurt', vorsatz:'griech.', zusatz:'0%', grams:200},
+      {name:'Leinsamen', frei:true},
+      {name:'Banane', frei:true},
+      {name:'Beeren', frei:true},
+    ]},
+    {time:'12:15 Mittag', name:'Linsensuppe + Hähnchen', kcal:'~500 kcal', items:[
+      {name:'Linsensuppe', grams:250, einheit:'ml'},
+      {name:'Hähnchen', zusatz:'dazu', grams:150},
+    ]},
+    {time:'15:45 Pre-Workout', name:'Skyr & Nüsse', kcal:'~600 kcal', items:[
+      {name:'Skyr', grams:250},
+      {name:'Nüsse', grams:30},
+      {name:'Banane', frei:true},
+      {name:'Honig', amount:'1 EL', frei:true},
+      {name:'etwas früher, da Nüsse langsamer verdauen', frei:true},
+    ]},
     {time:'18:00 Training', name:'Zirkeltraining · Physio Loft', kcal:'', items:'~45-60 Min · Wasserflasche mitnehmen', marker:true},
-    {time:'19:45 Nach Training', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:'Shake oder Quark, binnen 1-2h nach Training'},
-    {time:'21:00 Abend', name:'Omelett', kcal:'~480 kcal', items:'4 Eier · 80 g Feta · Spinat · Tomaten · 1 Scheibe Vollkornbrot'},
+    {time:'19:45 Nach Training', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:[
+      {name:'Shake oder Quark, binnen 1-2h nach Training', frei:true},
+    ]},
+    {time:'21:00 Abend', name:'Omelett', kcal:'~480 kcal', items:[
+      {name:'Eier', stueck:4},
+      {name:'Feta', grams:80},
+      {name:'Spinat', frei:true},
+      {name:'Tomaten', frei:true},
+      {name:'Vollkornbrot', amount:'1 Scheibe', frei:true},
+    ]},
   ]},
   5: { day:'Fr', meals:[
-    {time:'9:30 Frühstück', name:'Rührei & Brot', kcal:'~420 kcal', items:'3 Eier · 1-2 Scheiben Vollkornbrot · Tomate'},
-    {time:'12:00 Mittag', name:'Chicken Wrap', kcal:'~560 kcal', items:'2 Tortillas · 150 g Hähnchen · Salat · Möhren · Joghurt-Dip'},
-    {time:'Snacks Vorm.+Nachm.', name:'Quark & Reiswaffeln', kcal:'~750 kcal', items:'250 g Magerquark · 3 Reiswaffeln mit Erdnussmus · Banane'},
-    {time:'19:00 Abend', name:'Lachs/Forelle', kcal:'~500 kcal', items:'200 g Fisch · Brokkoli · 80 g Vollkornnudeln · Zitrone'},
+    {time:'9:30 Frühstück', name:'Rührei & Brot', kcal:'~420 kcal', items:[
+      {name:'Eier', stueck:3},
+      {name:'Vollkornbrot', amount:'1-2 Scheiben', frei:true},
+      {name:'Tomate', frei:true},
+    ]},
+    {time:'12:00 Mittag', name:'Chicken Wrap', kcal:'~560 kcal', items:[
+      {name:'Tortillas', amount:'2', frei:true},
+      {name:'Hähnchen', grams:150},
+      {name:'Salat', frei:true},
+      {name:'Möhren', frei:true},
+      {name:'Joghurt-Dip', frei:true},
+    ]},
+    {time:'Snacks Vorm.+Nachm.', name:'Quark & Reiswaffeln', kcal:'~750 kcal', items:[
+      {name:'Magerquark', grams:250},
+      {name:'Reiswaffeln mit Erdnussmus', amount:'3', frei:true},
+      {name:'Banane', frei:true},
+    ]},
+    {time:'19:00 Abend', name:'Lachs/Forelle', kcal:'~500 kcal', items:[
+      {name:'Fisch', grams:200},
+      {name:'Brokkoli', frei:true},
+      {name:'Vollkornnudeln', grams:80},
+      {name:'Zitrone', frei:true},
+    ]},
   ]},
   6: { day:'Sa', meals:[
-    {time:'8:30 Vor dem Lauf', name:'Oats & Banane', kcal:'~450 kcal', items:'60 g Haferflocken · 200 ml Milch · Banane · Erdnussmus'},
-    {time:'13:00 Nach dem Lauf', name:'Großes Mittag', kcal:'~700 kcal', items:'250 g Hähnchen/Steak · 200 g Kartoffeln · Salat'},
-    {time:'16:30 Snack', name:'Skyr-Bowl', kcal:'~650 kcal', items:'250 g Skyr · 40 g Granola · Banane · 20 g Erdnussmus'},
-    {time:'19:00 Abend', name:'Leichter Abend', kcal:'~450 kcal', items:'200 g Magerquark · Gemüse-Sticks'},
+    {time:'8:30 Vor dem Lauf', name:'Oats & Banane', kcal:'~450 kcal', items:[
+      {name:'Haferflocken', grams:60},
+      {name:'Milch', grams:200, einheit:'ml'},
+      {name:'Banane', frei:true},
+      {name:'Erdnussmus', frei:true},
+    ]},
+    {time:'13:00 Nach dem Lauf', name:'Großes Mittag', kcal:'~700 kcal', items:[
+      {name:'Hähnchen/Steak', grams:250},
+      {name:'Kartoffeln', grams:200},
+      {name:'Salat', frei:true},
+    ]},
+    {time:'16:30 Snack', name:'Skyr-Bowl', kcal:'~650 kcal', items:[
+      {name:'Skyr', grams:250},
+      {name:'Granola', grams:40},
+      {name:'Banane', frei:true},
+      {name:'Erdnussmus', grams:20},
+    ]},
+    {time:'19:00 Abend', name:'Leichter Abend', kcal:'~450 kcal', items:[
+      {name:'Magerquark', grams:200},
+      {name:'Gemüse-Sticks', frei:true},
+    ]},
   ]},
   0: { day:'So', meals:[
-    {time:'10:00 Frühstück', name:'Sonntagsfrühstück', kcal:'~500 kcal', items:'3 Eier Spiegelei · 2 Scheiben Vollkornbrot · ½ Avocado'},
-    {time:'13:00 Mittag', name:'Flexibel', kcal:'~600 kcal', items:'Protein + Gemüse priorisieren, auch Restaurant ok'},
-    {time:'16:30 Snack', name:'Quark-Bowl', kcal:'~700 kcal', items:'250 g Magerquark · 40 g Haferflocken · Banane · 30 g Nüsse'},
-    {time:'18:30 Abend', name:'Meal Prep Kochen', kcal:'~450 kcal', items:'Reis, Hähnchen, Gemüse für Mo-Mi vorkochen'},
+    {time:'10:00 Frühstück', name:'Sonntagsfrühstück', kcal:'~500 kcal', items:[
+      {name:'Eier', zusatz:'Spiegelei', stueck:3},
+      {name:'Vollkornbrot', amount:'2 Scheiben', frei:true},
+      {name:'Avocado', amount:'½', frei:true},
+    ]},
+    {time:'13:00 Mittag', name:'Flexibel', kcal:'~600 kcal', items:[
+      {name:'Protein + Gemüse priorisieren, auch Restaurant ok', frei:true},
+    ]},
+    {time:'16:30 Snack', name:'Quark-Bowl', kcal:'~700 kcal', items:[
+      {name:'Magerquark', grams:250},
+      {name:'Haferflocken', grams:40},
+      {name:'Banane', frei:true},
+      {name:'Nüsse', grams:30},
+    ]},
+    {time:'18:30 Abend', name:'Meal Prep Kochen', kcal:'~450 kcal', items:[
+      {name:'Reis, Hähnchen, Gemüse für Mo-Mi vorkochen', frei:true},
+    ]},
   ]}
 };
 
@@ -1252,6 +1404,10 @@ const NUTRITION_DB = {
   'Honig':           { protein:0.3, fett:0,   carbs:80,  kcal:304 },
   'Sojasoße':        { protein:8,   fett:0,   carbs:6,   kcal:60  },
   'Eier':            { protein:7,   fett:5.5, carbs:0.5, kcal:78, proStueck:true },
+  // Samstag steht "250 g Hähnchen/Steak" als eine feste Menge zur Wahl – Mittel
+  // aus Hähnchenbrust und magerem Steak, damit die Menge mitskaliert statt
+  // mangels DB-Treffer stehenzubleiben.
+  'Hähnchen/Steak':  { protein:24.5, fett:6,  carbs:0,   kcal:150 },
 };
 
 // Stellschrauben der Mengen-Skalierung an einem Ort, damit sie ohne Eingriff in
@@ -1331,20 +1487,24 @@ function berechneSkalierungsFaktoren(meals, zielKcal){
 
 // Strukturierte items-Liste zurück in die Anzeige-Zeile. frei-Positionen und
 // unbekannte Zutaten bleiben unverändert stehen.
+// `vorsatz`/`zusatz` erhalten Beiwerk aus dem Originaltext ("mageres Rinderhack",
+// "Lachs im Ofen"), `einheit` die Anzeige in ml statt g (Milch, Linsensuppe) –
+// gerechnet wird bei Flüssigkeiten bewusst ohne Dichte-Korrektur.
 function renderItemsString(items, faktoren){
   return items.map(item=>{
-    const label = item.zusatz ? `${item.name} ${item.zusatz}` : item.name;
+    const label = [item.vorsatz, item.name, item.zusatz].filter(Boolean).join(' ');
     if(item.frei) return item.amount ? `${item.amount} ${label}` : label;
+    const einheit = item.einheit || 'g';
     const db = NUTRITION_DB[item.name];
-    if(!db) return item.grams ? `${item.grams} g ${label}` : label;
+    if(!db) return item.grams ? `${item.grams} ${einheit} ${label}` : label;
     const faktor = istProteinQuelle(db) ? faktoren.proteinFaktor : faktoren.carbFettFaktor;
     if(item.stueck){
       return `${Math.max(1, Math.round(item.stueck * faktor))} ${label}`;
     }
     if(!item.grams) return label;
-    if(faktor === 1) return `${item.grams} g ${label}`;
+    if(faktor === 1) return `${item.grams} ${einheit} ${label}`;
     const raster = SKALIERUNGS_DAEMPFUNG.grammRaster;
-    return `${Math.max(raster, Math.round(item.grams * faktor / raster) * raster)} g ${label}`;
+    return `${Math.max(raster, Math.round(item.grams * faktor / raster) * raster)} ${einheit} ${label}`;
   }).join(' · ');
 }
 
