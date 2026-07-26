@@ -1277,7 +1277,7 @@ function loadState(){
     if(raw){
       // Defaults als Basis, gespeicherte Werte drüber → fehlende (neue) Keys
       // werden automatisch mit Defaults aufgefüllt.
-      return migrateStatuses(Object.assign(defaultState(), JSON.parse(raw)));
+      return fillProfileDefaults(migrateStatuses(Object.assign(defaultState(), JSON.parse(raw))));
     }
   }catch(e){}
   return defaultState();
@@ -1728,9 +1728,77 @@ function renderPRs(){
   });
 }
 
+// ===== ZIELWERT-RECHNER (Grundumsatz / Gesamtumsatz / Makros) =====
+// Bewusst eine vereinfachte Heuristik, kein validiertes Paper. Deshalb stehen die
+// Faktoren zentral hier und nicht in der Formel – so lassen sie sich später
+// nachkalibrieren, ohne die Rechnung anzufassen.
+// Der Sportanteil kommt ADDITIV auf die Alltags-Basis (nicht multiplikativ),
+// sonst würde der Trainingsverbrauch doppelt gezählt.
+const AKTIVITAETS_FAKTOREN = {
+  basis: { niedrig:1.2, mittel:1.35, hoch:1.5, sehr_hoch:1.65 },
+  proSporteinheit: 0.025,
+};
+const ZIEL_FAKTOREN     = { abnehmen:0.82, halten:1.0,  zunehmen:1.12 };
+const PROTEIN_G_PRO_KG  = { abnehmen:2.0,  halten:1.8,  zunehmen:1.8  };
+const FETT_G_PRO_KG     = 0.9;
+
+// Pflichtangaben für die Berechnung. Körpergewicht gehört dazu – beide
+// Grundumsatz-Formeln brauchen es zwingend.
+function zielRechnerBereit(p){
+  if(!p) return false;
+  return !!p.geschlecht && !!p.ernaehrungsziel
+      && Number(p.alter) > 0 && Number(p.groesseCm) > 0 && Number(p.weightKg) > 0;
+}
+
+// Reine Funktion: kein DOM-Zugriff, keine Seiteneffekte, schreibt nichts in den
+// State. Gibt null zurück, solange Pflichtangaben fehlen.
+function berechneZielwerte(profil){
+  const p = profil || {};
+  if(!zielRechnerBereit(p)) return null;
+
+  const gewichtKg = Number(p.weightKg);
+  const kfa = Number(p.kfaProzent);
+  const hatKfa = isFinite(kfa) && kfa > 0 && kfa < 70;
+
+  // Mit Körperfettanteil ist Katch-McArdle genauer (rechnet auf die Magermasse),
+  // ohne KFA bleibt Mifflin-St Jeor der Standard.
+  let bmr, formel;
+  if(hatKfa){
+    const magermasseKg = gewichtKg * (1 - kfa/100);
+    bmr = 370 + 21.6 * magermasseKg;
+    formel = 'katch-mcardle';
+  }else{
+    bmr = 10*gewichtKg + 6.25*Number(p.groesseCm) - 5*Number(p.alter) + (p.geschlecht === 'm' ? 5 : -161);
+    formel = 'mifflin-st-jeor';
+  }
+
+  const basis = AKTIVITAETS_FAKTOREN.basis[p.alltagsaktivitaet] || AKTIVITAETS_FAKTOREN.basis.mittel;
+  const sport = Math.min(7, Math.max(0, Number(p.sportProWoche) || 0));
+  const tdee  = bmr * (basis + AKTIVITAETS_FAKTOREN.proSporteinheit * sport);
+
+  const zielKcal = Math.round(tdee * (ZIEL_FAKTOREN[p.ernaehrungsziel] || 1));
+
+  // Protein & Fett zuerst (gerundet), Kohlenhydrate sind der Rest – so geht die
+  // angezeigte Summe auf. Negativer Rest = Ziel zu niedrig für die Vorgaben.
+  const proteinG = Math.round((PROTEIN_G_PRO_KG[p.ernaehrungsziel] || 1.8) * gewichtKg);
+  const fettG    = Math.round(FETT_G_PRO_KG * gewichtKg);
+  const carbsRoh = (zielKcal - proteinG*4 - fettG*9) / 4;
+  const warnung  = carbsRoh < 0
+    ? 'Protein und Fett allein liegen schon über dem Kalorienziel – prüf Ziel, Gewicht oder Angaben.'
+    : null;
+
+  return {
+    bmr: Math.round(bmr), tdee: Math.round(tdee), zielKcal,
+    proteinG, fettG, carbsG: Math.max(0, Math.round(carbsRoh)),
+    formel, warnung,
+  };
+}
+
 // ===== RENDER: PROFIL =====
-// Pro-Person-Einstellungen (eigener localStorage je Gerät): Name, Gewicht,
-// Kalorienziel (skaliert die Essensplan-Anzeige) und Einstiegsphase.
+// Pro-Person-Einstellungen (eigener localStorage je Gerät): Name, Körperdaten,
+// Aktivität, Ernährungsziel, Kalorienziel (skaliert die Essensplan-Anzeige) und
+// Einstiegsphase. Kalorienziel bleibt manuell überschreibbar – der Rechner füllt
+// es nur auf Knopfdruck.
 function renderProfile(){
   const el = document.getElementById('profileSection');
   if(!el) return;
@@ -1740,6 +1808,17 @@ function renderProfile(){
     {k:'build',    label:'Aufbau'},
     {k:'specific', label:'Spezifisch'},
   ];
+  const aktOpts = [
+    {k:'niedrig',   label:'Wenig – Bürojob, kaum Bewegung'},
+    {k:'mittel',    label:'Normal – etwas Alltagsbewegung'},
+    {k:'hoch',      label:'Viel – oft auf den Beinen'},
+    {k:'sehr_hoch', label:'Sehr viel – körperliche Arbeit'},
+  ];
+  const num = (v)=> (v != null && v !== '' ? v : '');
+  const toggle = (feld, opts)=> `<div class="profile-toggle">${opts.map(o=>
+    `<button class="${p[feld]===o.k ? 'active' : ''}" data-toggle="${feld}" data-val="${o.k}">${o.label}</button>`
+  ).join('')}</div>`;
+
   el.innerHTML = `
     <div class="profile-card">
       <div class="profile-row">
@@ -1748,14 +1827,57 @@ function renderProfile(){
                placeholder="optional" value="${escapeHtml(p.name || '')}">
       </div>
       <div class="profile-row">
+        <span class="profile-label">Geschlecht</span>
+        ${toggle('geschlecht', [{k:'w', label:'Weiblich'}, {k:'m', label:'Männlich'}])}
+      </div>
+      <div class="profile-row">
+        <span class="profile-label">Alter</span>
+        <input class="profile-input" data-numfield="alter" type="number" inputmode="numeric" min="10" max="100"
+               placeholder="Jahre" value="${num(p.alter)}">
+      </div>
+      <div class="profile-row">
+        <span class="profile-label">Größe</span>
+        <input class="profile-input" data-numfield="groesseCm" type="number" inputmode="numeric" min="100" max="230"
+               placeholder="cm" value="${num(p.groesseCm)}">
+      </div>
+      <div class="profile-row">
         <span class="profile-label">Körpergewicht</span>
         <input class="profile-input" id="profileWeight" type="number" inputmode="decimal" min="30" max="300"
                placeholder="kg" value="${p.weightKg != null ? p.weightKg : ''}">
       </div>
+      <div class="profile-row profile-col">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+          <span class="profile-label">Körperfettanteil</span>
+          <input class="profile-input" data-numfield="kfaProzent" type="number" inputmode="decimal" min="3" max="60"
+                 placeholder="%" value="${num(p.kfaProzent)}">
+        </div>
+        <span class="profile-hint">Optional – erhöht die Genauigkeit der Berechnung.</span>
+      </div>
       <div class="profile-row">
+        <span class="profile-label">Sport pro Woche</span>
+        <select class="profile-select" id="profileSport">
+          ${[0,1,2,3,4,5,6,7].map(n=>`<option value="${n}" ${Number(p.sportProWoche||0)===n ? 'selected' : ''}>${n}× pro Woche</option>`).join('')}
+        </select>
+      </div>
+      <div class="profile-row profile-col">
+        <span class="profile-label">Alltagsaktivität</span>
+        <select class="profile-select" id="profileAktivitaet">
+          ${aktOpts.map(o=>`<option value="${o.k}" ${(p.alltagsaktivitaet || 'mittel')===o.k ? 'selected' : ''}>${o.label}</option>`).join('')}
+        </select>
+        <span class="profile-hint">Bewegung außerhalb des Trainings – Training zählt oben separat.</span>
+      </div>
+      <div class="profile-row profile-col">
+        <span class="profile-label">Ernährungsziel</span>
+        ${toggle('ernaehrungsziel', [{k:'abnehmen', label:'Abnehmen'}, {k:'halten', label:'Halten'}, {k:'zunehmen', label:'Zunehmen'}])}
+      </div>
+      <div class="profile-row profile-col">
         <span class="profile-label">Kalorienziel</span>
-        <input class="profile-input" id="profileKcal" type="number" inputmode="numeric" min="1000" max="5000"
-               placeholder="kcal/Tag" value="${p.kcalTarget != null ? p.kcalTarget : ''}">
+        <div class="profile-kcal-wrap">
+          <input class="profile-input" id="profileKcal" type="number" inputmode="numeric" min="1000" max="5000"
+                 placeholder="kcal/Tag" value="${p.kcalTarget != null ? p.kcalTarget : ''}">
+          <button class="profile-calc-btn" id="profileRecalc" title="Kalorienziel aus deinen Angaben berechnen">↻ Neu berechnen</button>
+        </div>
+        <div class="profile-calc-out" id="profileCalcOut"></div>
       </div>
       <div class="profile-row profile-col">
         <span class="profile-label">Einstieg ab Phase</span>
@@ -1768,18 +1890,64 @@ function renderProfile(){
   `;
   // Name: oninput (kein Re-Render → Fokus bleibt), nur speichern.
   document.getElementById('profileName').oninput = (e)=>{ state.profile.name = e.target.value; saveState(); };
+  // Zahlenfelder der Körperdaten (Alter/Größe/KFA): speichern ohne Re-Render, damit
+  // beim Tippen weder Fokus noch Cursor springen. Nur die Rechner-Anzeige wird nachgeführt.
+  el.querySelectorAll('[data-numfield]').forEach(inp=>{
+    inp.oninput = ()=>{
+      const v = parseFloat(inp.value);
+      state.profile[inp.dataset.numfield] = (isFinite(v) && v > 0) ? v : null;
+      saveState();
+      updateProfileCalcUi();
+    };
+  });
+  // Auswahl-Buttons: aktiven Zustand direkt an den Geschwistern umschalten statt
+  // die Karte neu zu rendern (sonst gingen offene Eingaben verloren).
+  el.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.onclick = ()=>{
+      state.profile[btn.dataset.toggle] = btn.dataset.val;
+      saveState();
+      btn.parentElement.querySelectorAll('button').forEach(b=> b.classList.toggle('active', b === btn));
+      updateProfileCalcUi();
+    };
+  });
   // Gewicht: speichern (leeres/ungültiges Feld → null).
   document.getElementById('profileWeight').onchange = (e)=>{
     const v = parseFloat(e.target.value);
     state.profile.weightKg = (isFinite(v) && v > 0) ? v : null;
     saveState();
+    updateProfileCalcUi();
   };
-  // Kalorienziel: speichern + Essensplan-Anzeige neu skalieren.
-  document.getElementById('profileKcal').onchange = (e)=>{
-    const v = parseInt(e.target.value);
-    state.profile.kcalTarget = (isFinite(v) && v > 0) ? v : null;
+  document.getElementById('profileSport').onchange = (e)=>{
+    state.profile.sportProWoche = parseInt(e.target.value) || 0;
     saveState();
-    renderFoodTabs();
+    updateProfileCalcUi();
+  };
+  document.getElementById('profileAktivitaet').onchange = (e)=>{
+    state.profile.alltagsaktivitaet = e.target.value;
+    saveState();
+    updateProfileCalcUi();
+  };
+  // Kalorienziel manuell: Wert übernehmen und die Auto-Markierung zurücksetzen –
+  // die berechneten Werte passen dann nicht mehr und werden ausgeblendet.
+  const kcalInp = document.getElementById('profileKcal');
+  kcalInp.oninput = ()=>{
+    const v = parseInt(kcalInp.value);
+    state.profile.kcalTarget = (isFinite(v) && v > 0) ? v : null;
+    state.profile.kalorienzielAutoBerechnet = false;
+    saveState();
+    updateProfileCalcUi();
+  };
+  // Essensplan-Anzeige erst beim Verlassen des Feldes neu skalieren.
+  kcalInp.onchange = ()=> renderFoodTabs();
+  // Neu berechnen: einziger Weg, wie das Kalorienziel automatisch gesetzt wird.
+  document.getElementById('profileRecalc').onclick = ()=>{
+    const r = berechneZielwerte(state.profile);
+    if(!r) return;
+    state.profile.kcalTarget = r.zielKcal;
+    state.profile.kalorienzielAutoBerechnet = true;
+    saveState();
+    renderProfile();   // Feldwert + Ergebnisblock neu (kein Feld in Bearbeitung)
+    renderFoodTabs();  // Essensplan folgt dem neuen Ziel wie bei manueller Eingabe
   };
   // Einstiegsphase: speichern + alles Phasenabhängige neu (Heute/Banner/Ernährung/Einkauf).
   document.getElementById('profileStartPhase').onchange = (e)=>{
@@ -1787,6 +1955,31 @@ function renderProfile(){
     saveState();
     renderAll();
   };
+  updateProfileCalcUi();
+}
+
+// Aktualisiert nur den Button-Zustand und den Ergebnisblock der Profil-Karte –
+// schreibt bewusst NICHT die ganze Karte neu, damit Eingaben nicht verloren gehen.
+// Der Ergebnisblock erscheint nur, wenn das Ziel berechnet wurde UND die Rechnung
+// noch zu den aktuellen Profildaten passt (sonst stünden veraltete Makros neben
+// einem längst geänderten Kalorienziel).
+function updateProfileCalcUi(){
+  const btn = document.getElementById('profileRecalc');
+  const out = document.getElementById('profileCalcOut');
+  if(!btn || !out) return;
+  const p = state.profile || {};
+  btn.disabled = !zielRechnerBereit(p);
+  const r = berechneZielwerte(p);
+  if(!(p.kalorienzielAutoBerechnet && r && r.zielKcal === Number(p.kcalTarget))){
+    out.innerHTML = '';
+    return;
+  }
+  out.innerHTML = `
+    <div>Grundumsatz <b>${r.bmr} kcal</b> · Gesamtumsatz <b>${r.tdee} kcal</b></div>
+    <div>Protein <b>${r.proteinG} g</b> · Fett <b>${r.fettG} g</b> · Kohlenhydrate <b>${r.carbsG} g</b></div>
+    ${r.warnung ? `<div class="profile-calc-warn">${r.warnung}</div>` : ''}
+    <span class="profile-hint">Berechnet nach ${r.formel === 'katch-mcardle' ? 'Katch-McArdle (mit KFA)' : 'Mifflin-St Jeor'} – Richtwert, kein Dogma.</span>
+  `;
 }
 
 // ===== RENDER: BACKUP-ERINNERUNG =====
@@ -2963,6 +3156,28 @@ document.getElementById('hardReset').onclick = ()=>{
 };
 
 // ===== BACKUP: EXPORT / IMPORT =====
+// Standardwerte des Profils. Eigene Funktion, weil Object.assign() nur flach
+// mischt: ein gespeichertes profile-Objekt ersetzt das Default-Objekt komplett,
+// neue Felder wären danach undefined (siehe fillProfileDefaults).
+function defaultProfile(){
+  return {
+    name:'', weightKg:null, kcalTarget:null, startPhase:'base',
+    geschlecht:null,          // 'w' | 'm'
+    alter:null,               // Jahre
+    groesseCm:null,           // cm
+    kfaProzent:null,          // Körperfettanteil in %, optional
+    sportProWoche:0,          // 0..7 Einheiten
+    alltagsaktivitaet:'mittel', // 'niedrig' | 'mittel' | 'hoch' | 'sehr_hoch'
+    ernaehrungsziel:null,     // 'abnehmen' | 'halten' | 'zunehmen'
+    kalorienzielAutoBerechnet:false, // true = kcalTarget kommt aus dem Rechner
+  };
+}
+// Füllt fehlende Profil-Felder mit Defaults auf. Gespeicherte Werte gewinnen —
+// ein bereits manuell gesetztes kcalTarget wird dabei NICHT überschrieben.
+function fillProfileDefaults(s){
+  s.profile = Object.assign(defaultProfile(), s.profile || {});
+  return s;
+}
 // Standardwerte für den State — zentrale Quelle, von loadState/hardReset/Import genutzt.
 function defaultState(){
   return {
@@ -2976,7 +3191,7 @@ function defaultState(){
     hyroxDate:DEFAULT_HYROX_DATE, // Renndatum 'YYYY-MM-DD', im UI editierbar
     lastBackup:null,  // todayKey des letzten Exports
     water:{},         // Wasser je Tag: { 'YYYY-MM-DD': anzahlGläser } (1 Glas = 250 ml)
-    profile:{ name:'', weightKg:null, kcalTarget:null, startPhase:'base' }, // pro Gerät/Person
+    profile: defaultProfile(),  // pro Gerät/Person
     aktiverPlan:'hyrox',  // 'hyrox' = bisheriges Verhalten (Default!), sonst eine SPLIT_PLAENE-id
     splitFortschritt:{},  // pro Split-Plan: { split_5er: { aktuellerTag:1, checks:{ 't1_0':true } } }
     splitLog:{},   // Verlauf je Split-Übung: { planId: { 't<tag>_<index>': [{date,kg,reps}] } }
@@ -3019,7 +3234,7 @@ function importBackup(file){
       if(!isPlausibleState(parsed)) throw new Error('Keine gültige Backup-Datei');
       if(!confirm('Aktuellen Stand mit dem Backup überschreiben? Deine jetzigen Daten gehen dabei verloren.')) return;
       // Fehlende Keys mit Defaults auffüllen (wie loadState es für weights macht).
-      state = Object.assign(defaultState(), parsed);
+      state = fillProfileDefaults(Object.assign(defaultState(), parsed));
       saveState();
       renderAll();
       alert('Backup wurde erfolgreich importiert.');
