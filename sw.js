@@ -8,7 +8,7 @@
 //
 // Versionsnummer nur erhöhen, wenn du den Cache hart purgen willst – für
 // normale Datei-Updates ist das nicht mehr nötig.
-const CACHE = 'hyrox-v13';
+const CACHE = 'hyrox-v14';
 
 // Relative Pfade, damit es auch in einem GitHub-Pages-Unterordner funktioniert.
 const ASSETS = [

@@ -1794,6 +1794,87 @@ function berechneZielwerte(profil){
   };
 }
 
+// ===== KFA-BEISPIELE =====
+// Grobe Orientierung zum Selbst-Einschätzen des Körperfettanteils, rein textlich.
+// Bewusst KEINE Fotos/Stock-Bilder (Lizenz), stattdessen eigene Silhouetten (s.u.).
+// `bis` beim obersten, offenen Bereich ist nur der Bezugswert für den Vorschlags-
+// Mittelwert – angezeigt wird "und mehr", damit keine Scheingenauigkeit entsteht.
+const KFA_BEISPIELE = {
+  m: [
+    { von:10, bis:14, label:'~10–14 %', text:'Bauchmuskeln deutlich sichtbar, Venen an Armen und Bauch' },
+    { von:15, bis:19, label:'~15–19 %', text:'Bauchmuskeln angedeutet sichtbar, definierte Umrisse' },
+    { von:20, bis:24, label:'~20–24 %', text:'Keine Bauchmuskel-Definition, aber noch klare Taille' },
+    { von:25, bis:29, label:'~25 % und mehr', text:'Keine Muskeldefinition sichtbar, rundlichere Körperform' },
+  ],
+  w: [
+    { von:18, bis:22, label:'~18–22 %', text:'Sichtbare Definition an Armen und Bauch' },
+    { von:23, bis:27, label:'~23–27 %', text:'Leichte Rundungen, moderate Definition' },
+    { von:28, bis:32, label:'~28–32 %', text:'Weichere Konturen, kaum Definition' },
+    { von:33, bis:37, label:'~33 % und mehr', text:'Deutlich rundere Körperform' },
+  ],
+};
+// Halbe Rumpfbreite je Kategorie (aufsteigend: schmalste Silhouette zuerst).
+const KFA_SILHOUETTE_BREITEN = [10, 12, 14, 16];
+
+// Abstrakte Silhouette, einziger Parameter ist die halbe Rumpfbreite `b`
+// (Rumpfkanten bei 20±b). Kopf und Beine bleiben unverändert, gefärbt über
+// currentColor. Keine anatomischen Details – nur die Körperform andeuten.
+function kfaSilhouette(b){
+  const L = 20 - b, Lc = L + 2, R = 20 + b, Rc = R - 2;
+  return `<svg width="40" height="60" viewBox="0 0 40 60" fill="none" aria-hidden="true">
+    <circle cx="20" cy="8" r="6" fill="currentColor"/>
+    <path d="M20 16 C${Lc} 16 ${L} 22 ${L} 30 L${L} 42 C${L} 46 ${Lc} 48 14 48 L14 58 L18 58 L18 48 L22 48 L22 58 L26 58 L26 48 C${Rc} 48 ${R} 46 ${R} 42 L${R} 30 C${R} 22 ${Rc} 16 20 16 Z" fill="currentColor"/>
+  </svg>`;
+}
+
+// Auf-/zugeklappt ist reiner Anzeige-Zustand – bewusst nicht im State/localStorage.
+let kfaBeispieleOffen = false;
+
+// Rendert ausschließlich den Beispiel-Bereich (#kfaBeispiele) und den Button-
+// Zustand – nie die ganze Profil-Karte, damit offene Eingaben erhalten bleiben.
+function renderKfaBeispiele(){
+  const box = document.getElementById('kfaBeispiele');
+  const btn = document.getElementById('kfaToggle');
+  if(!box || !btn) return;
+  btn.classList.toggle('active', kfaBeispieleOffen);
+  if(!kfaBeispieleOffen){ box.innerHTML = ''; return; }
+  // Ist das Geschlecht schon gesetzt, nur die passende Liste zeigen, sonst beide.
+  const g = state.profile && state.profile.geschlecht;
+  const gruppen = (g === 'm') ? [['m','Männer']]
+                : (g === 'w') ? [['w','Frauen']]
+                : [['m','Männer'], ['w','Frauen']];
+  box.innerHTML = `
+    <div class="kfa-liste">
+      <span class="profile-hint">Grobe Einschätzung, keine exakte Messung. Tipp einen Bereich an, um den Wert zu übernehmen.</span>
+      ${gruppen.map(([key, titel])=> `
+        ${gruppen.length > 1 ? `<div class="kfa-gruppe">${titel}</div>` : ''}
+        ${KFA_BEISPIELE[key].map((e, i)=> `
+          <button class="kfa-item" data-kfa="${Math.round((e.von + e.bis)/2)}">
+            ${kfaSilhouette(KFA_SILHOUETTE_BREITEN[i])}
+            <span class="kfa-text">
+              <span class="kfa-range">${e.label}</span>
+              <span class="kfa-desc">${e.text}</span>
+            </span>
+          </button>
+        `).join('')}
+      `).join('')}
+    </div>
+  `;
+  // Tippen auf einen Bereich füllt das Feld mit dem Mittelwert vor (überschreibbar).
+  box.querySelectorAll('[data-kfa]').forEach(b=>{
+    b.onclick = ()=>{
+      const v = parseInt(b.dataset.kfa);
+      state.profile.kfaProzent = v;
+      saveState();
+      const inp = document.querySelector('[data-numfield="kfaProzent"]');
+      if(inp) inp.value = v;
+      kfaBeispieleOffen = false;
+      renderKfaBeispiele();
+      updateProfileCalcUi();
+    };
+  });
+}
+
 // ===== RENDER: PROFIL =====
 // Pro-Person-Einstellungen (eigener localStorage je Gerät): Name, Körperdaten,
 // Aktivität, Ernährungsziel, Kalorienziel (skaliert die Essensplan-Anzeige) und
@@ -1846,12 +1927,16 @@ function renderProfile(){
                placeholder="kg" value="${p.weightKg != null ? p.weightKg : ''}">
       </div>
       <div class="profile-row profile-col">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+        <div class="profile-kfa-head">
           <span class="profile-label">Körperfettanteil</span>
           <input class="profile-input" data-numfield="kfaProzent" type="number" inputmode="decimal" min="3" max="60"
                  placeholder="%" value="${num(p.kfaProzent)}">
         </div>
-        <span class="profile-hint">Optional – erhöht die Genauigkeit der Berechnung.</span>
+        <div class="profile-kfa-actions">
+          <span class="profile-hint">Optional – erhöht die Genauigkeit der Berechnung.</span>
+          <button class="profile-kfa-btn" id="kfaToggle">KFA-Beispiele</button>
+        </div>
+        <div id="kfaBeispiele"></div>
       </div>
       <div class="profile-row">
         <span class="profile-label">Sport pro Woche</span>
@@ -1908,8 +1993,14 @@ function renderProfile(){
       saveState();
       btn.parentElement.querySelectorAll('button').forEach(b=> b.classList.toggle('active', b === btn));
       updateProfileCalcUi();
+      renderKfaBeispiele(); // Geschlechtswechsel → passende KFA-Liste nachziehen
     };
   });
+  // KFA-Beispiele auf-/zuklappen (nur der Bereich darunter wird neu geschrieben).
+  document.getElementById('kfaToggle').onclick = ()=>{
+    kfaBeispieleOffen = !kfaBeispieleOffen;
+    renderKfaBeispiele();
+  };
   // Gewicht: speichern (leeres/ungültiges Feld → null).
   document.getElementById('profileWeight').onchange = (e)=>{
     const v = parseFloat(e.target.value);
@@ -1956,6 +2047,7 @@ function renderProfile(){
     renderAll();
   };
   updateProfileCalcUi();
+  renderKfaBeispiele();
 }
 
 // Aktualisiert nur den Button-Zustand und den Ergebnisblock der Profil-Karte –
