@@ -1120,12 +1120,34 @@ const ESN_PLAN = {
 };
 
 const FOOD_PLAN = {
+  // Montag ist auf die strukturierte items-Form umgestellt (Phase 1) – dadurch
+  // skalieren die Gramm-Angaben mit dem Kalorienziel. Die übrigen Tage nutzen
+  // weiterhin den freien Text-String; renderFoodContent kann beides.
   1: { day:'Mo', meals:[
-    {time:'9:30 Frühstück', name:'Quark-Schüssel', kcal:'~400 kcal', items:'250 g Magerquark · 30 g Haferflocken · Beeren · 1 EL Honig'},
-    {time:'12:00 Mittag', name:'Hähnchen & Reis', kcal:'~580 kcal', items:'180 g Hähnchenbrust · 150 g Reis · Paprika/Gurke roh'},
-    {time:'Nach Zirkel', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:'Shake oder Quark + Obst, binnen 1-2h nach Training'},
-    {time:'16:30 Snack', name:'Skyr & Banane', kcal:'~450 kcal', items:'250 g Skyr · Banane · 20 g Erdnussmus'},
-    {time:'19:00 Abend', name:'Lachs & Gemüse', kcal:'~520 kcal', items:'180 g Lachs im Ofen · Brokkoli · 100 g Kartoffeln'},
+    {time:'9:30 Frühstück', name:'Quark-Schüssel', kcal:'~400 kcal', items:[
+      {name:'Magerquark', grams:250},
+      {name:'Haferflocken', grams:30},
+      {name:'Beeren', frei:true},
+      {name:'Honig', amount:'1 EL', frei:true},
+    ]},
+    {time:'12:00 Mittag', name:'Hähnchen & Reis', kcal:'~580 kcal', items:[
+      {name:'Hähnchenbrust', grams:180},
+      {name:'Reis', grams:150},
+      {name:'Paprika/Gurke roh', frei:true},
+    ]},
+    {time:'Nach Zirkel', name:'Protein-Mahlzeit', kcal:'~300 kcal', items:[
+      {name:'Shake oder Quark + Obst, binnen 1-2h nach Training', frei:true},
+    ]},
+    {time:'16:30 Snack', name:'Skyr & Banane', kcal:'~450 kcal', items:[
+      {name:'Skyr', grams:250},
+      {name:'Banane', frei:true},
+      {name:'Erdnussmus', grams:20},
+    ]},
+    {time:'19:00 Abend', name:'Lachs & Gemüse', kcal:'~520 kcal', items:[
+      {name:'Lachs', zusatz:'im Ofen', grams:180},
+      {name:'Brokkoli', frei:true},
+      {name:'Kartoffeln', grams:100},
+    ]},
   ], zirkelMeals:[
     {time:'9:30 Frühstück', name:'Quark-Schüssel', kcal:'~400 kcal', items:'250 g Magerquark · 30 g Haferflocken · Beeren · 1 EL Honig'},
     {time:'12:00 Mittag', name:'Hähnchen & Reis', kcal:'~580 kcal', items:'180 g Hähnchenbrust · 150 g Reis · Paprika/Gurke roh'},
@@ -1179,6 +1201,152 @@ const FOOD_PLAN = {
     {time:'18:30 Abend', name:'Meal Prep Kochen', kcal:'~450 kcal', items:'Reis, Hähnchen, Gemüse für Mo-Mi vorkochen'},
   ]}
 };
+
+// ===== NÄHRWERTE FÜR DIE MENGEN-SKALIERUNG =====
+// Gerundete Standard-Nährwertangaben pro 100 g – keine Laboranalyse, aber für
+// "ungefähre" Mengenangaben im Wochenplan völlig ausreichend. Die Schlüssel
+// müssen exakt den `name`-Feldern in FOOD_PLAN.items entsprechen; unbekannte
+// Zutaten werden unskaliert angezeigt (Fallback, siehe renderItemsString).
+const NUTRITION_DB = {
+  'Magerquark':      { protein:12,  fett:0.2, carbs:4,   kcal:67  },
+  'Haferflocken':    { protein:13,  fett:7,   carbs:58,  kcal:370 },
+  'Skyr':            { protein:11,  fett:0.2, carbs:4,   kcal:63  },
+  'Joghurt':         { protein:4,   fett:3.5, carbs:4.5, kcal:62  },
+  'Milch':           { protein:3.4, fett:3.5, carbs:4.8, kcal:65  },
+  'Hähnchenbrust':   { protein:23,  fett:2,   carbs:0,   kcal:110 },
+  'Hähnchen':        { protein:23,  fett:2,   carbs:0,   kcal:110 },
+  'Putenhack':       { protein:20,  fett:7,   carbs:0,   kcal:143 },
+  'Rinderhack':      { protein:20,  fett:10,  carbs:0,   kcal:175 },
+  'Steak':           { protein:26,  fett:10,  carbs:0,   kcal:190 },
+  'Lachs':           { protein:20,  fett:13,  carbs:0,   kcal:200 },
+  'Fisch':           { protein:20,  fett:6,   carbs:0,   kcal:140 },
+  'Forelle':         { protein:20,  fett:6,   carbs:0,   kcal:140 },
+  'Thunfisch':       { protein:25,  fett:1,   carbs:0,   kcal:116 },
+  'Feta':            { protein:14,  fett:21,  carbs:4,   kcal:264 },
+  'Hüttenkäse':      { protein:12,  fett:4,   carbs:3,   kcal:98  },
+  'Reis':            { protein:2.7, fett:0.3, carbs:28,  kcal:130 },
+  'Reisnudeln':      { protein:2,   fett:0.2, carbs:25,  kcal:110 },
+  'Vollkornnudeln':  { protein:5,   fett:1,   carbs:25,  kcal:124 },
+  'Quinoa':          { protein:4.4, fett:1.9, carbs:21,  kcal:120 },
+  'Kartoffeln':      { protein:2,   fett:0.1, carbs:17,  kcal:77  },
+  'Süßkartoffeln':   { protein:1.6, fett:0.1, carbs:20,  kcal:86  },
+  'Vollkornbrot':    { protein:8,   fett:3,   carbs:40,  kcal:220 },
+  'Tortillas':       { protein:8,   fett:7,   carbs:45,  kcal:290 },
+  'Reiswaffeln':     { protein:8,   fett:3,   carbs:80,  kcal:385 },
+  'Granola':         { protein:10,  fett:15,  carbs:60,  kcal:450 },
+  'Erdnussmus':      { protein:25,  fett:50,  carbs:15,  kcal:590 },
+  'Nüsse':           { protein:21,  fett:50,  carbs:13,  kcal:580 },
+  'Leinsamen':       { protein:18,  fett:42,  carbs:29,  kcal:534 },
+  'Avocado':         { protein:2,   fett:15,  carbs:9,   kcal:160 },
+  'Banane':          { protein:1.1, fett:0.3, carbs:23,  kcal:95,  stueckGramm:120 },
+  'Apfel':           { protein:0.3, fett:0.2, carbs:14,  kcal:52,  stueckGramm:180 },
+  'Beeren':          { protein:0.8, fett:0.3, carbs:8,   kcal:40  },
+  'Spinat':          { protein:2.9, fett:0.4, carbs:1.4, kcal:23  },
+  'Zucchini':        { protein:1.2, fett:0.3, carbs:2.1, kcal:17  },
+  'Brokkoli':        { protein:2.8, fett:0.4, carbs:7,   kcal:34  },
+  'Paprika':         { protein:1,   fett:0.3, carbs:6,   kcal:31  },
+  'Gurke':           { protein:0.7, fett:0.1, carbs:3.6, kcal:15  },
+  'Möhren':          { protein:0.9, fett:0.2, carbs:10,  kcal:41  },
+  'Tomaten':         { protein:0.9, fett:0.2, carbs:3.9, kcal:18  },
+  'Linsensuppe':     { protein:6,   fett:2,   carbs:15,  kcal:100 },
+  'Honig':           { protein:0.3, fett:0,   carbs:80,  kcal:304 },
+  'Sojasoße':        { protein:8,   fett:0,   carbs:6,   kcal:60  },
+  'Eier':            { protein:7,   fett:5.5, carbs:0.5, kcal:78, proStueck:true },
+};
+
+// Stellschrauben der Mengen-Skalierung an einem Ort, damit sie ohne Eingriff in
+// die Formel nachjustiert werden können.
+const SKALIERUNGS_DAEMPFUNG = {
+  proteinSchwelle: 0.35,      // ab diesem Protein-kcal-Anteil gilt eine Zutat als Protein-Quelle
+  proteinAnteilAmWachstum: 0.4, // Protein wächst nur mit 40 % der Gesamt-Steigerung
+  carbFettMin: 0.5,
+  carbFettMax: 2.5,
+  grammRaster: 5,             // Gramm-Angaben auf 5 g runden
+};
+
+// Protein-dominant oder Carb/Fett-dominant wird aus den Nährwerten berechnet,
+// nicht je Zutat von Hand zugeordnet.
+function istProteinQuelle(db){
+  if(!db) return false;
+  return (db.protein * 4) / (db.kcal || 1) >= SKALIERUNGS_DAEMPFUNG.proteinSchwelle;
+}
+
+// kcal einer strukturierten Zutat. frei-Positionen und unbekannte Zutaten
+// zählen mit 0, sie werden auch nicht skaliert.
+function itemKcal(item){
+  if(!item || item.frei) return 0;
+  const db = NUTRITION_DB[item.name];
+  if(!db) return 0;
+  if(item.stueck) return item.stueck * db.kcal;
+  if(item.grams)  return (item.grams / 100) * db.kcal;
+  return 0;
+}
+
+// Erste Zahl aus einer kcal-Angabe wie '~400 kcal'. Leere Angaben → 0.
+function planKcalZahl(s){
+  const m = String(s || '').match(/\d+/);
+  return m ? parseInt(m[0]) : 0;
+}
+
+// Skalierungsfaktoren für einen Tag. Protein-Quellen wachsen gedämpft, damit
+// der Mehrbedarf überwiegend über Carbs/Fett gedeckt wird.
+//
+// Zur frei-Pauschale: die Spec schlug einen festen Schätzwert (~150 kcal) vor.
+// Am Montag hängen aber 866 der 2250 kcal an frei-Positionen (Obst, Gemüse,
+// Shake) – mit der Pauschale liefen die Mengen komplett aus dem Ruder. Der
+// frei-Anteil wird deshalb je Tag aus den ausgewiesenen Mahlzeiten-kcal
+// abgeleitet: er bleibt konstant, die skalierbaren Töpfe teilen den Rest.
+function berechneSkalierungsFaktoren(meals, zielKcal){
+  const neutral = { proteinFaktor:1, carbFettFaktor:1, warnung:null };
+  if(!zielKcal || !isFinite(zielKcal) || zielKcal <= 0) return neutral;
+  let baseProteinKcal = 0, baseCarbFettKcal = 0;
+  meals.forEach(m=>{
+    if(!Array.isArray(m.items)) return;
+    m.items.forEach(item=>{
+      const k = itemKcal(item);
+      if(!k) return;
+      if(istProteinQuelle(NUTRITION_DB[item.name])) baseProteinKcal += k;
+      else baseCarbFettKcal += k;
+    });
+  });
+  // Kein strukturierter Tag (oder nur Protein): nichts zu skalieren.
+  if(baseCarbFettKcal <= 0) return neutral;
+  const skalierbarBasis = baseProteinKcal + baseCarbFettKcal;
+  const gesamtBasisKcal = meals.reduce((s,m)=> s + planKcalZahl(m.kcal), 0);
+  // Unplausible Datenlage (Zutaten schwerer als der ausgewiesene Tag) → lieber
+  // unskaliert anzeigen als raten.
+  if(gesamtBasisKcal < skalierbarBasis) return neutral;
+  const gesamtFaktor  = zielKcal / gesamtBasisKcal;
+  const proteinFaktor = 1 + (gesamtFaktor - 1) * SKALIERUNGS_DAEMPFUNG.proteinAnteilAmWachstum;
+  const skalierbarZiel = skalierbarBasis * gesamtFaktor;
+  let carbFettFaktor = (skalierbarZiel - baseProteinKcal * proteinFaktor) / baseCarbFettKcal;
+  let warnung = null;
+  const min = SKALIERUNGS_DAEMPFUNG.carbFettMin, max = SKALIERUNGS_DAEMPFUNG.carbFettMax;
+  if(carbFettFaktor < min || carbFettFaktor > max){
+    warnung = 'Kalorienziel passt nicht zu diesem Tagesplan – die Mengen sind begrenzt und nur grobe Richtwerte.';
+    carbFettFaktor = Math.min(max, Math.max(min, carbFettFaktor));
+  }
+  return { proteinFaktor, carbFettFaktor, warnung };
+}
+
+// Strukturierte items-Liste zurück in die Anzeige-Zeile. frei-Positionen und
+// unbekannte Zutaten bleiben unverändert stehen.
+function renderItemsString(items, faktoren){
+  return items.map(item=>{
+    const label = item.zusatz ? `${item.name} ${item.zusatz}` : item.name;
+    if(item.frei) return item.amount ? `${item.amount} ${label}` : label;
+    const db = NUTRITION_DB[item.name];
+    if(!db) return item.grams ? `${item.grams} g ${label}` : label;
+    const faktor = istProteinQuelle(db) ? faktoren.proteinFaktor : faktoren.carbFettFaktor;
+    if(item.stueck){
+      return `${Math.max(1, Math.round(item.stueck * faktor))} ${label}`;
+    }
+    if(!item.grams) return label;
+    if(faktor === 1) return `${item.grams} g ${label}`;
+    const raster = SKALIERUNGS_DAEMPFUNG.grammRaster;
+    return `${Math.max(raster, Math.round(item.grams * faktor / raster) * raster)} g ${label}`;
+  }).join(' · ');
+}
 
 // ===== ERNÄHRUNG PRO PHASE =====
 // Richtwerte für Alex (86 kg, aktiv). Der Wochen-Essensplan (FOOD_PLAN) bleibt die
@@ -2888,8 +3056,12 @@ function renderFoodContent(dow){
   };
   // Tagessumme aus den (skalierten) kcal-Angaben der Mahlzeiten.
   const total = meals.reduce((sum,m)=> sum + scaleNum(m.kcal), 0);
+  // Mengen-Skalierung der einzelnen Zutaten – nur für Tage in der strukturierten
+  // items-Form. Tage mit Text-String liefern neutrale Faktoren.
+  const faktoren = berechneSkalierungsFaktoren(meals, Number(state.profile && state.profile.kcalTarget));
   el.innerHTML = `
     <div class="day-kcal-total">Tagessumme <b>~${total} kcal</b>${isZirkel ? ' · <span class="zirkel-flag">Zirkeltag</span>' : ''}</div>
+    ${faktoren.warnung ? `<div class="scale-warn">${faktoren.warnung}</div>` : ''}
   ` + meals.map(m=>`
     <div class="meal-card${m.marker ? ' meal-marker' : ''}">
       <div class="meal-top">
@@ -2897,7 +3069,7 @@ function renderFoodContent(dow){
         <span class="meal-kcal">${scaleStr(m.kcal)}</span>
       </div>
       <div class="meal-name">${m.name}</div>
-      <div class="meal-items">${m.items}</div>
+      <div class="meal-items">${Array.isArray(m.items) ? renderItemsString(m.items, faktoren) : m.items}</div>
     </div>
   `).join('');
 }
