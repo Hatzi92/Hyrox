@@ -166,6 +166,10 @@
   .status-skip-btn.active{color:var(--rust); background:var(--rust-light)}
   .exercise-last-weight{font-size:10.5px; color:var(--steel); margin-top:1px; font-weight:600}
   .exercise-sets{font-size:11.5px; color:var(--ink-faint); white-space:nowrap}
+  /* Sätze/Wdh + Satzpause stapeln sich rechtsbündig in einer Spalte (nur Split-Plan).
+     .exercise-sets bleibt unveraendert – die Pause kommt als zweite Zeile darunter. */
+  .exercise-meta{display:flex; flex-direction:column; align-items:flex-end; gap:1px; flex-shrink:0}
+  .exercise-pause{font-size:10.5px; color:var(--steel); white-space:nowrap; font-weight:600}
 
   .weight-btn{
     flex-shrink:0; width:24px; height:24px; border-radius:50%; border:none;

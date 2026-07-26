@@ -64,23 +64,30 @@ const UEBUNGEN = {
   // Rumpf
   planks:                      { n: 'Planks',                      m: ['abs','lowerback'] },
 };
-// Löst einen Plan-Eintrag { ref, s } in die volle Form { n, m, s } auf, die der
-// Render-Code erwartet (identisch zum früheren Inline-Format). Unbekannte ref darf
-// nicht crashen: Key als Name anzeigen, keine Muskeln, Warnung in der Konsole.
+// Löst einen Plan-Eintrag { ref, s, p } in die volle Form { n, m, s, p } auf, die der
+// Render-Code erwartet. n/m kommen aus der Bibliothek, s (Sätze/Wdh) und p (Satzpause)
+// aus dem Plan – beides ist Dosierung und darf je Plan abweichen. p ist optional:
+// fehlt es, wird schlicht keine Pause angezeigt (kein Platzhalter, kein Raten).
+// Unbekannte ref darf nicht crashen: Key als Name anzeigen, keine Muskeln, Warnung.
 function resolveUebung(eintrag){
   const base = UEBUNGEN[eintrag.ref];
   if(!base){
     console.warn('Unbekannte Übungs-Referenz:', eintrag.ref);
-    return { n: eintrag.ref, m: [], s: eintrag.s };
+    return { n: eintrag.ref, m: [], s: eintrag.s, p: eintrag.p };
   }
-  return { n: base.n, m: base.m, s: eintrag.s };
+  return { n: base.n, m: base.m, s: eintrag.s, p: eintrag.p };
 }
 
 // ===== SPLIT-PLÄNE (rollend, NICHT wochentag-gebunden) =====
 // Parallel zur bestehenden Hyrox-Logik. Ein Split-Plan hat nummerierte Tage, die
 // rollend durchlaufen werden: der aktuelle Tag ergibt sich aus den Abhakungen,
 // nicht aus dem Kalender (siehe state.splitFortschritt + renderSplitToday).
-// Übungsform: { ref:Key aus UEBUNGEN, s:'Sätze×Wdh' } – aufgelöst über resolveUebung.
+// Übungsform: { ref:Key aus UEBUNGEN, s:'Sätze×Wdh', p:'Satzpause' } – aufgelöst über
+// resolveUebung. p ist ein freier String wie im Originalplan ('2 min', '1-2 min',
+// 'Max') und wird NICHT in Sekunden umgerechnet, sonst gehen Bereiche verloren.
+// p gilt fix für alle Sätze der Übung und steht beim Plan (nicht in UEBUNGEN), damit
+// ein späterer 3er/4er-Plan dieselbe Übung anders dosieren kann. Fehlt p, wird keine
+// Pause angezeigt – lieber nichts als ein geratener Wert.
 // ACHTUNG: Die Reihenfolge je Tag ist der Log-Schlüssel ('t<tag>_<index>') – beim
 // Bearbeiten NICHT umsortieren, sonst zeigt "letztes Mal" fremde Werte.
 const SPLIT_PLAENE = {
@@ -93,42 +100,42 @@ const SPLIT_PLAENE = {
     tagModus: 'rollend',   // NICHT wochentag-gebunden
     tage: [
       { nr: 1, titel: 'Brust', uebungen: [
-        { ref: 'kh_schraegbankdruecken',       s: '4×6-10'  },
-        { ref: 'brustpresse',                  s: '4×8-12'  },
-        { ref: 'butterfly_kabelturm',          s: '4×12-15' },
-        { ref: 'dips',                         s: '3×max'   },
-        { ref: 'crunches_kabelturm',           s: '3×12-15' },
+        { ref: 'kh_schraegbankdruecken',       s: '4×6-10',  p: '2-3 min' },
+        { ref: 'brustpresse',                  s: '4×8-12',  p: '2 min'   },
+        { ref: 'butterfly_kabelturm',          s: '4×12-15', p: '1-2 min' },
+        { ref: 'dips',                         s: '3×max',   p: '1-2 min' },
+        { ref: 'crunches_kabelturm',           s: '3×12-15', p: '1-2 min' },
       ]},
       { nr: 2, titel: 'Rücken', uebungen: [
-        { ref: 'lh_rudern',                    s: '4×6-10'  },
-        { ref: 'high_row_maschine',            s: '3×8-12'  },
-        { ref: 'kh_rudern',                    s: '3×8-12'  },
-        { ref: 'latzug_untergriff_eng',        s: '3×8-12'  },
-        { ref: 'seil_ueberzuege_kabelturm',    s: '4×12-15' },
+        { ref: 'lh_rudern',                    s: '4×6-10',  p: '2 min'   },
+        { ref: 'high_row_maschine',            s: '3×8-12',  p: '2 min'   },
+        { ref: 'kh_rudern',                    s: '3×8-12',  p: '2 min'   },
+        { ref: 'latzug_untergriff_eng',        s: '3×8-12',  p: '2 min'   },
+        { ref: 'seil_ueberzuege_kabelturm',    s: '4×12-15', p: '1-2 min' },
       ]},
       { nr: 3, titel: 'Schulter', uebungen: [
-        { ref: 'multipresse_schulterdruecken', s: '4×8-12'  },
-        { ref: 'aufrechtes_rudern',            s: '3×8-12'  },
-        { ref: 'kh_seitheben',                 s: '3×12-15' },
-        { ref: 'reverse_butterfly_maschine',   s: '3×12-15' },
-        { ref: 'schulterpresse',               s: '3×8-12'  },
-        { ref: 'planks',                       s: '4×1min'  },
+        { ref: 'multipresse_schulterdruecken', s: '4×8-12',  p: '2 min'   },
+        { ref: 'aufrechtes_rudern',            s: '3×8-12',  p: '2 min'   },
+        { ref: 'kh_seitheben',                 s: '3×12-15', p: '1-2 min' },
+        { ref: 'reverse_butterfly_maschine',   s: '3×12-15', p: '1-2 min' },
+        { ref: 'schulterpresse',               s: '3×8-12',  p: '2 min'   },
+        { ref: 'planks',                       s: '4×1min',  p: '1 min'   },
       ]},
       { nr: 4, titel: 'Beine', uebungen: [
-        { ref: 'beinpresse_45',                s: '4×6-10'  },
-        { ref: 'lh_ausfallschritte',           s: '3×8-12'  },
-        { ref: 'beinbeuger_liegend',           s: '3×12-15' },
-        { ref: 'beinstrecker',                 s: '3×8-12'  },
-        { ref: 'adduktoren',                   s: '3×12-15' },
-        { ref: 'wadenheben_sitzend',           s: '3×8-12'  },
+        { ref: 'beinpresse_45',                s: '4×6-10',  p: '2-3 min' },
+        { ref: 'lh_ausfallschritte',           s: '3×8-12',  p: '2-3 min' },
+        { ref: 'beinbeuger_liegend',           s: '3×12-15', p: '1-2 min' },
+        { ref: 'beinstrecker',                 s: '3×8-12',  p: '1-2 min' },
+        { ref: 'adduktoren',                   s: '3×12-15', p: '1-2 min' },
+        { ref: 'wadenheben_sitzend',           s: '3×8-12',  p: '1-2 min' },
       ]},
       { nr: 5, titel: 'Arme', uebungen: [
-        { ref: 'sz_french_press',              s: '3×8-12'  },
-        { ref: 'hammer_curls',                 s: '4×8-12'  },
-        { ref: 'kh_trizepsstrecken_ueberkopf', s: '3×12-15' },
-        { ref: 'bizepscurls_kabelturm',        s: '4×12-15' },
-        { ref: 'trizeps_pushdown_seil',        s: '3×8-12'  },
-        { ref: 'unterarm_curls',               s: '3×8-12'  },
+        { ref: 'sz_french_press',              s: '3×8-12',  p: '1-2 min' },
+        { ref: 'hammer_curls',                 s: '4×8-12',  p: '1-2 min' },
+        { ref: 'kh_trizepsstrecken_ueberkopf', s: '3×12-15', p: '1-2 min' },
+        { ref: 'bizepscurls_kabelturm',        s: '4×12-15', p: '1-2 min' },
+        { ref: 'trizeps_pushdown_seil',        s: '3×8-12',  p: '1-2 min' },
+        { ref: 'unterarm_curls',               s: '3×8-12',  p: '1-2 min' },
       ]},
     ]
   }
@@ -1911,7 +1918,10 @@ function renderSplitToday(plan){
                 <div class="exercise-name-wrap">
                   <div class="exercise-name${st.nameClass}">${e.n}${st.badge}</div>
                 </div>
-                <div class="exercise-sets">${e.s}</div>
+                <div class="exercise-meta">
+                  <div class="exercise-sets">${e.s}</div>
+                  ${e.p ? `<div class="exercise-pause" title="Pause zwischen den Sätzen">⏱ ${e.p}</div>` : ''}
+                </div>
                 ${hasMuscles ? `<button class="muscle-info-btn" data-mi="${i}" aria-label="Trainierte Muskeln anzeigen">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                 </button>` : ''}
