@@ -31,23 +31,32 @@ const MUSCLE_INFO = {
 const UEBUNGEN = {
   // Brust
   kh_schraegbankdruecken:      { n: 'KH-Schrägbankdrücken',        m: ['chest','shoulders','triceps'] },
+  lh_bankdruecken:             { n: 'LH-Bankdrücken',              m: ['chest','shoulders','triceps'] },
   brustpresse:                 { n: 'Brustpresse',                 m: ['chest'] },
   butterfly_kabelturm:         { n: 'Butterfly am Kabelturm',      m: ['chest'] },
+  kh_butterfly:                { n: 'KH-Butterfly',                m: ['chest'] },
   dips:                        { n: 'Dips',                        m: ['chest','triceps'] },
   crunches_kabelturm:          { n: 'Crunches am Kabelturm',       m: ['abs'] },
   // Rücken
   lh_rudern:                   { n: 'LH-Rudern',                   m: ['lats','traps','biceps'] },
+  rudern_kabelzug:             { n: 'Rudern am Kabelzug',          m: ['lats','traps','biceps'] },
   high_row_maschine:           { n: 'High Row-Maschine',           m: ['lats','traps'] },
   kh_rudern:                   { n: 'KH-Rudern',                   m: ['lats','biceps'] },
+  klimmzuege:                  { n: 'Klimmzüge',                   m: ['lats','biceps'] },
   latzug_untergriff_eng:       { n: 'Latzug Untergriff eng',       m: ['lats','biceps'] },
+  latzug_breit:                { n: 'Latzug breit',                m: ['lats','biceps'] },
   seil_ueberzuege_kabelturm:   { n: 'Seil-Überzüge am Kabelturm',  m: ['lats','chest'] },
   // Schulter
   multipresse_schulterdruecken:{ n: 'Multipresse-Schulterdrücken', m: ['shoulders','triceps'] },
+  lh_schulterdruecken:         { n: 'LH-Schulterdrücken',          m: ['shoulders','triceps'] },
   aufrechtes_rudern:           { n: 'Aufrechtes Rudern',           m: ['shoulders','traps'] },
   kh_seitheben:                { n: 'KH-Seitheben',                m: ['shoulders'] },
   reverse_butterfly_maschine:  { n: 'Reverse Butterfly-Maschine',  m: ['shoulders','traps'] },
+  face_pulls:                  { n: 'Face Pulls',                  m: ['shoulders','traps'] },
+  shrugs:                      { n: 'Shrugs',                      m: ['traps'] },
   schulterpresse:              { n: 'Schulterpresse',              m: ['shoulders','triceps'] },
   // Beine
+  kreuzheben:                  { n: 'Kreuzheben',                  m: ['hamstrings','glutes','lowerback'] },
   beinpresse_45:               { n: '45°-Beinpresse',              m: ['quads','glutes','hamstrings'] },
   lh_ausfallschritte:          { n: 'LH-Ausfallschritte',          m: ['quads','glutes'] },
   beinbeuger_liegend:          { n: 'Beinbeuger-Maschine liegend', m: ['hamstrings'] },
@@ -59,6 +68,7 @@ const UEBUNGEN = {
   hammer_curls:                { n: 'Hammer Curls',                m: ['biceps','forearms'] },
   kh_trizepsstrecken_ueberkopf:{ n: 'KH-Trizepsstrecken überkopf', m: ['triceps'] },
   bizepscurls_kabelturm:       { n: 'Bizepscurls am Kabelturm',    m: ['biceps'] },
+  lh_bizepscurls:              { n: 'LH-Bizepscurls',              m: ['biceps'] },
   trizeps_pushdown_seil:       { n: 'Trizeps-Pushdown mit Seil',   m: ['triceps'] },
   unterarm_curls:              { n: 'Unterarm-Curls',              m: ['forearms'] },
   // Rumpf
@@ -136,6 +146,52 @@ const SPLIT_PLAENE = {
         { ref: 'bizepscurls_kabelturm',        s: '4×12-15', p: '1-2 min' },
         { ref: 'trizeps_pushdown_seil',        s: '3×8-12',  p: '1-2 min' },
         { ref: 'unterarm_curls',               s: '3×8-12',  p: '1-2 min' },
+      ]},
+    ]
+  },
+  // 4er-Split: eigene Plan-ID → eigener splitFortschritt/splitLog. Übungen, die auch
+  // im 5er vorkommen, werden nur referenziert; Sätze/Wdh und Pause weichen bewusst ab
+  // (deshalb stehen s/p beim Plan und nicht in UEBUNGEN).
+  split_4er: {
+    id: 'split_4er',
+    name: '4er Split',
+    quelle: 'ESN',
+    ziel: 'muskelaufbau',
+    typ: 'split',
+    tagModus: 'rollend',
+    tage: [
+      { nr: 1, titel: 'Brust & Trizeps', uebungen: [
+        { ref: 'kh_schraegbankdruecken',       s: '4×8-12',  p: '2 min'   },
+        { ref: 'lh_bankdruecken',              s: '4×6-10',  p: '2 min'   },
+        { ref: 'kh_butterfly',                 s: '4×12-15', p: '1-2 min' },
+        { ref: 'dips',                         s: '3×max',   p: '1-2 min' },
+        { ref: 'sz_french_press',              s: '3×6-10',  p: '1 min'   },
+        { ref: 'trizeps_pushdown_seil',        s: '3×8-12',  p: '1 min'   },
+      ]},
+      { nr: 2, titel: 'Rücken & Bizeps', uebungen: [
+        { ref: 'klimmzuege',                   s: '4×max',   p: '2 min'   },
+        { ref: 'rudern_kabelzug',              s: '3×8-12',  p: '2 min'   },
+        { ref: 'latzug_breit',                 s: '3×12-15', p: '2 min'   },
+        { ref: 'kh_rudern',                    s: '3×8-12',  p: '2 min'   },
+        { ref: 'hammer_curls',                 s: '3×8-12',  p: '1 min'   },
+        { ref: 'lh_bizepscurls',               s: '3×8-12',  p: '1 min'   },
+      ]},
+      { nr: 3, titel: 'Schulter & Abs', uebungen: [
+        { ref: 'lh_schulterdruecken',          s: '4×6-10',  p: '2 min'   },
+        { ref: 'kh_seitheben',                 s: '4×8-12',  p: '1 min'   },
+        { ref: 'shrugs',                       s: '3×6-10',  p: '1 min'   },
+        { ref: 'reverse_butterfly_maschine',   s: '3×12-15', p: '1 min'   },
+        { ref: 'face_pulls',                   s: '3×8-12',  p: '1 min'   },
+        { ref: 'planks',                       s: '4×1min',  p: '1 min'   },
+        { ref: 'crunches_kabelturm',           s: '4×8-12',  p: '1 min'   },
+      ]},
+      { nr: 4, titel: 'Beine', uebungen: [
+        { ref: 'kreuzheben',                   s: '4×6-10',  p: '2-3 min' },
+        { ref: 'beinpresse_45',                s: '4×8-12',  p: '2 min'   },
+        { ref: 'beinbeuger_liegend',           s: '3×12-15', p: '1-2 min' },
+        { ref: 'beinstrecker',                 s: '3×8-12',  p: '1-2 min' },
+        { ref: 'adduktoren',                   s: '3×12-15', p: '1-2 min' },
+        { ref: 'wadenheben_sitzend',           s: '3×8-12',  p: '1-2 min' },
       ]},
     ]
   }
