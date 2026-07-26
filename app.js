@@ -1795,37 +1795,25 @@ function berechneZielwerte(profil){
 }
 
 // ===== KFA-BEISPIELE =====
-// Grobe Orientierung zum Selbst-Einschätzen des Körperfettanteils, rein textlich.
-// Bewusst KEINE Fotos/Stock-Bilder (Lizenz), stattdessen eigene Silhouetten (s.u.).
+// Grobe Orientierung zum Selbst-Einschätzen des Körperfettanteils. Bewusst REIN
+// TEXTLICH – keine Fotos (Lizenz) und auch keine eigenen Icons/Silhouetten: bei
+// der kleinen Darstellungsgröße bringen sie nichts, kosten aber Pflege.
 // `bis` beim obersten, offenen Bereich ist nur der Bezugswert für den Vorschlags-
 // Mittelwert – angezeigt wird "und mehr", damit keine Scheingenauigkeit entsteht.
 const KFA_BEISPIELE = {
   m: [
-    { von:10, bis:14, label:'~10–14 %', text:'Bauchmuskeln deutlich sichtbar, Venen an Armen und Bauch' },
-    { von:15, bis:19, label:'~15–19 %', text:'Bauchmuskeln angedeutet sichtbar, definierte Umrisse' },
-    { von:20, bis:24, label:'~20–24 %', text:'Keine Bauchmuskel-Definition, aber noch klare Taille' },
-    { von:25, bis:29, label:'~25 % und mehr', text:'Keine Muskeldefinition sichtbar, rundlichere Körperform' },
+    { von:10, bis:14, kat:'Athletisch',          label:'~10–14 %',       text:'Bauchmuskeln deutlich sichtbar, Venen an Armen und Bauch' },
+    { von:15, bis:19, kat:'Definiert',           label:'~15–19 %',       text:'Bauchmuskeln angedeutet sichtbar, definierte Umrisse' },
+    { von:20, bis:24, kat:'Durchschnittlich',    label:'~20–24 %',       text:'Keine Bauchmuskel-Definition, aber noch klare Taille' },
+    { von:25, bis:29, kat:'Höherer Fettanteil',  label:'~25 % und mehr', text:'Keine Muskeldefinition sichtbar, rundlichere Körperform' },
   ],
   w: [
-    { von:18, bis:22, label:'~18–22 %', text:'Sichtbare Definition an Armen und Bauch' },
-    { von:23, bis:27, label:'~23–27 %', text:'Leichte Rundungen, moderate Definition' },
-    { von:28, bis:32, label:'~28–32 %', text:'Weichere Konturen, kaum Definition' },
-    { von:33, bis:37, label:'~33 % und mehr', text:'Deutlich rundere Körperform' },
+    { von:18, bis:22, kat:'Athletisch',          label:'~18–22 %',       text:'Sichtbare Definition an Armen und Bauch' },
+    { von:23, bis:27, kat:'Definiert',           label:'~23–27 %',       text:'Leichte Rundungen, moderate Definition' },
+    { von:28, bis:32, kat:'Durchschnittlich',    label:'~28–32 %',       text:'Weichere Konturen, kaum Definition' },
+    { von:33, bis:37, kat:'Höherer Fettanteil',  label:'~33 % und mehr', text:'Deutlich rundere Körperform' },
   ],
 };
-// Halbe Rumpfbreite je Kategorie (aufsteigend: schmalste Silhouette zuerst).
-const KFA_SILHOUETTE_BREITEN = [10, 12, 14, 16];
-
-// Abstrakte Silhouette, einziger Parameter ist die halbe Rumpfbreite `b`
-// (Rumpfkanten bei 20±b). Kopf und Beine bleiben unverändert, gefärbt über
-// currentColor. Keine anatomischen Details – nur die Körperform andeuten.
-function kfaSilhouette(b){
-  const L = 20 - b, Lc = L + 2, R = 20 + b, Rc = R - 2;
-  return `<svg width="40" height="60" viewBox="0 0 40 60" fill="none" aria-hidden="true">
-    <circle cx="20" cy="8" r="6" fill="currentColor"/>
-    <path d="M20 16 C${Lc} 16 ${L} 22 ${L} 30 L${L} 42 C${L} 46 ${Lc} 48 14 48 L14 58 L18 58 L18 48 L22 48 L22 58 L26 58 L26 48 C${Rc} 48 ${R} 46 ${R} 42 L${R} 30 C${R} 22 ${Rc} 16 20 16 Z" fill="currentColor"/>
-  </svg>`;
-}
 
 // Auf-/zugeklappt ist reiner Anzeige-Zustand – bewusst nicht im State/localStorage.
 let kfaBeispieleOffen = false;
@@ -1848,13 +1836,13 @@ function renderKfaBeispiele(){
       <span class="profile-hint">Grobe Einschätzung, keine exakte Messung. Tipp einen Bereich an, um den Wert zu übernehmen.</span>
       ${gruppen.map(([key, titel])=> `
         ${gruppen.length > 1 ? `<div class="kfa-gruppe">${titel}</div>` : ''}
-        ${KFA_BEISPIELE[key].map((e, i)=> `
+        ${KFA_BEISPIELE[key].map(e=> `
           <button class="kfa-item" data-kfa="${Math.round((e.von + e.bis)/2)}">
-            ${kfaSilhouette(KFA_SILHOUETTE_BREITEN[i])}
-            <span class="kfa-text">
+            <span class="kfa-head-row">
+              <span class="kfa-kat">${e.kat}</span>
               <span class="kfa-range">${e.label}</span>
-              <span class="kfa-desc">${e.text}</span>
             </span>
+            <span class="kfa-desc">${e.text}</span>
           </button>
         `).join('')}
       `).join('')}
