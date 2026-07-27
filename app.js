@@ -1478,12 +1478,17 @@ function berechneSkalierungsFaktoren(meals, zielKcal){
   const proteinFaktor = 1 + (gesamtFaktor - 1) * SKALIERUNGS_DAEMPFUNG.proteinAnteilAmWachstum;
   const skalierbarZiel = skalierbarBasis * gesamtFaktor;
   let carbFettFaktor = (skalierbarZiel - baseProteinKcal * proteinFaktor) / baseCarbFettKcal;
+  // Der Hinweistext nennt die Richtung: an welchem Clamp der Faktor hängt, sagt
+  // aus, ob das Ziel für diesen Tag zu hoch oder zu niedrig ist. Reine Anzeige –
+  // geclampt wird wie zuvor auf denselben Bereich.
   let warnung = null;
   const min = SKALIERUNGS_DAEMPFUNG.carbFettMin, max = SKALIERUNGS_DAEMPFUNG.carbFettMax;
-  if(carbFettFaktor < min || carbFettFaktor > max){
-    warnung = 'Kalorienziel passt nicht zu diesem Tagesplan – die Mengen sind begrenzt und nur grobe Richtwerte.';
-    carbFettFaktor = Math.min(max, Math.max(min, carbFettFaktor));
+  if(carbFettFaktor > max){
+    warnung = 'Dein Kalorienziel liegt über dem, was dieser Tagesplan hergibt – die Mengen sind nach oben begrenzt und nur grobe Richtwerte.';
+  } else if(carbFettFaktor < min){
+    warnung = 'Dein Kalorienziel liegt unter dem, was dieser Tagesplan abdeckt – die Mengen sind nach unten begrenzt und nur grobe Richtwerte.';
   }
+  if(warnung) carbFettFaktor = Math.min(max, Math.max(min, carbFettFaktor));
   return { proteinFaktor, carbFettFaktor, warnung };
 }
 
