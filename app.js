@@ -1390,8 +1390,10 @@ const NUTRITION_DB = {
   'Nüsse':           { protein:21,  fett:50,  carbs:13,  kcal:580 },
   'Leinsamen':       { protein:18,  fett:42,  carbs:29,  kcal:534 },
   'Avocado':         { protein:2,   fett:15,  carbs:9,   kcal:160 },
-  'Banane':          { protein:1.1, fett:0.3, carbs:23,  kcal:95,  stueckGramm:120 },
-  'Apfel':           { protein:0.3, fett:0.2, carbs:14,  kcal:52,  stueckGramm:180 },
+  // Obst steht im Plan bewusst ohne feste Menge ("Banane", "Apfel") und bleibt
+  // damit frei – kein stueck-Umbau, der bei kleinen Zielen Bruchzahlen erzeugt.
+  'Banane':          { protein:1.1, fett:0.3, carbs:23,  kcal:95  },
+  'Apfel':           { protein:0.3, fett:0.2, carbs:14,  kcal:52  },
   'Beeren':          { protein:0.8, fett:0.3, carbs:8,   kcal:40  },
   'Spinat':          { protein:2.9, fett:0.4, carbs:1.4, kcal:23  },
   'Zucchini':        { protein:1.2, fett:0.3, carbs:2.1, kcal:17  },
