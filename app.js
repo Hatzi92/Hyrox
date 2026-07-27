@@ -1484,9 +1484,9 @@ function berechneSkalierungsFaktoren(meals, zielKcal){
   let warnung = null;
   const min = SKALIERUNGS_DAEMPFUNG.carbFettMin, max = SKALIERUNGS_DAEMPFUNG.carbFettMax;
   if(carbFettFaktor > max){
-    warnung = 'Dein Kalorienziel liegt über dem, was dieser Tagesplan hergibt – die Mengen sind nach oben begrenzt und nur grobe Richtwerte.';
+    warnung = 'Dein Kalorienziel übersteigt, was dieser Tagesplan abdeckt – die Mengen sind nach oben begrenzt und nur grobe Richtwerte.';
   } else if(carbFettFaktor < min){
-    warnung = 'Dein Kalorienziel liegt unter dem, was dieser Tagesplan abdeckt – die Mengen sind nach unten begrenzt und nur grobe Richtwerte.';
+    warnung = 'Dein Kalorienziel unterschreitet, was dieser Tagesplan abdeckt – die Mengen sind nach unten begrenzt und nur grobe Richtwerte.';
   }
   if(warnung) carbFettFaktor = Math.min(max, Math.max(min, carbFettFaktor));
   return { proteinFaktor, carbFettFaktor, warnung };
